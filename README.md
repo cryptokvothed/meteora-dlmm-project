@@ -1,6 +1,3 @@
-Below is an updated `README.md` file in markdown format that reflects the new folder structure. You can copy and paste the entire code block into your `README.md` file:
-
-```markdown
 # Meteora API Time Series Collector
 
 This project is a Python application that periodically polls the Meteora API to collect data and stores it in a SQLite database. The application is designed to build a time series of API responses for further analysis.
