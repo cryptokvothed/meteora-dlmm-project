@@ -1,16 +1,26 @@
+Below is an updated `README.md` file in markdown format that reflects the new folder structure. You can copy and paste the entire code block into your `README.md` file:
+
+```markdown
 # Meteora API Time Series Collector
 
-This project is a Python application that periodically polls the Meteora API to collect data and stores it into a SQLite database. The application is designed to build a time series of API responses for further analysis.
+This project is a Python application that periodically polls the Meteora API to collect data and stores it in a SQLite database. The application is designed to build a time series of API responses for further analysis.
 
 ## Project Structure
 
 ```
 meteora_project/
-├── api.py         # Contains functions to call the Meteora API with error handling, retries, and rate limiting.
-├── config.py      # Configuration for API endpoints, database filename, and rate limiting settings.
-├── db.py          # Functions to set up the SQLite database and insert API data.
-├── main.py        # Main application file that schedules API calls (using APScheduler) at one-minute intervals.
-└── README.md      # This file.
+├── meteora_project/
+│   ├── __init__.py
+│   ├── apis/                  
+│   │   ├── __init__.py         # Marks the folder as a package.
+│   │   └── meteora_dlmm.py     # API module for Meteora DLMM data (formerly api.py).
+│   ├── config.py               # Configuration for API endpoints, database filename, and rate limiting settings.
+│   └── db.py                   # Functions to set up the SQLite database and insert API data.
+├── main.py                     # Application entry point that schedules API calls at one-minute intervals.
+├── tests/                      # (Optional) Folder for tests.
+│   └── test_api.py
+├── README.md                   # This file.
+└── requirements.txt            # List of dependencies.
 ```
 
 ## Features
@@ -19,7 +29,7 @@ meteora_project/
   Uses APScheduler to call the Meteora API every minute.
 
 - **Robust Error Handling:**  
-  Integrates Tenacity for retries with exponential backoff, and ratelimit to prevent exceeding API rate limits.
+  Integrates Tenacity for retries with exponential backoff and ratelimit to prevent exceeding API rate limits.
 
 - **Time Series Data Collection:**  
   Each API call’s response (with a timestamp) is stored in a SQLite database for time series analysis.
@@ -72,11 +82,11 @@ Press `Ctrl+C` to stop the scheduler gracefully.
 
 ## Configuration
 
-Edit `config.py` to adjust settings such as:
-- `API_BASE_URL`: The base URL for the Meteora API.
-- `DEFAULT_LIMIT`: The number of records to request from the API.
-- `DB_FILENAME`: The filename for your SQLite database.
-- `CALLS` and `PERIOD`: For rate limiting (e.g., 30 calls per minute).
+Edit `meteora_project/config.py` to adjust settings such as:
+- **API_BASE_URL:** The base URL for the Meteora API.
+- **DEFAULT_LIMIT:** The number of records to request from the API.
+- **DB_FILENAME:** The filename for your SQLite database.
+- **CALLS** and **PERIOD:** For rate limiting (e.g., 30 calls per minute).
 
 ## License
 
@@ -85,3 +95,6 @@ This project is open source and available under the [MIT License](LICENSE).
 ## Contributing
 
 Feel free to submit issues or pull requests if you have suggestions or improvements.
+```
+
+This updated `README.md` reflects the new folder structure, including the dedicated `apis` folder and the renamed API module (`meteora_dlmm.py`). Adjust any repository-specific details (such as your GitHub URL) as needed.
