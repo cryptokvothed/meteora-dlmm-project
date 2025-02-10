@@ -92,6 +92,3 @@ This project is open source and available under the [MIT License](LICENSE).
 ## Contributing
 
 Feel free to submit issues or pull requests if you have suggestions or improvements.
-```
-
-This updated `README.md` reflects the new folder structure, including the dedicated `apis` folder and the renamed API module (`meteora_dlmm.py`). Adjust any repository-specific details (such as your GitHub URL) as needed.
