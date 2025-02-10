@@ -1,12 +1,22 @@
 # config.py
 
-# API configuration
+# API Configuration
 API_BASE_URL = "https://dlmm-api.meteora.ag"
 DEFAULT_LIMIT = 100
 
 # Database configuration
 DB_FILENAME = "api_entries.db"
 
-# Rate limiting configuration (for ratelimit)
-CALLS = 30           # maximum calls
-PERIOD = 60          # per period in seconds (i.e. 30 calls per minute)
+# Rate Limiting Configuration
+# Each API can have its own "calls" (number of allowed calls) and "period" (in seconds)
+RATE_LIMITS = {
+    "meteora_dlmm": {
+        "calls": 30,  # 30 calls
+        "period": 60  # per 60 seconds (i.e., 30 calls per minute)
+    },
+    "another_api": {
+        "calls": 10,  # 10 calls
+        "period": 60  # per 60 seconds (i.e., 10 calls per minute)
+    },
+    # Add additional APIs here with their unique rate limits
+}

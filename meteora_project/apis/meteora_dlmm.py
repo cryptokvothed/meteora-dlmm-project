@@ -1,4 +1,4 @@
-# api.py
+# meteora_dlmm.py
 
 import requests
 import json
@@ -10,17 +10,17 @@ import config
 
 logger = logging.getLogger(__name__)
 
+# Retrieve the specific rate limit for the Meteora DLMM API
+meteora_rate = config.RATE_LIMITS.get("meteora_dlmm", {"calls": 30, "period": 60})
+calls = meteora_rate["calls"]
+period = meteora_rate["period"]
+
 @sleep_and_retry
-@limits(calls=config.CALLS, period=config.PERIOD)
+@limits(calls=calls, period=period)
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
 def meteora_lp_api(page=1, limit=config.DEFAULT_LIMIT, order_by='desc', skip_size=0, sort_key='volume'):
     """
     Calls the Meteora API and returns the JSON response along with a timezone-aware API return timestamp.
-    
-    This function is decorated to:
-      - Enforce a rate limit,
-      - Retry up to 5 times on exceptions with exponential backoff,
-      - Use a timeout on the HTTP request.
     """
     base_url = config.API_BASE_URL
     endpoint = "/pair/all_with_pagination"
@@ -33,8 +33,7 @@ def meteora_lp_api(page=1, limit=config.DEFAULT_LIMIT, order_by='desc', skip_siz
     }
     
     response = requests.get(base_url + endpoint, params=params, timeout=10)
-    # This will raise an HTTPError for non-200 responses and trigger a retry.
-    response.raise_for_status()
+    response.raise_for_status()  # Will trigger retry if status is not 200
     
     data = response.json()
     api_timestamp = datetime.now(timezone.utc).isoformat()

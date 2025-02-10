@@ -3,9 +3,9 @@
 import json
 import logging
 from apscheduler.schedulers.blocking import BlockingScheduler
-from api import meteora_lp_api
-from db import setup_database, insert_api_entry
-import config
+from meteora_project.apis.meteora_dlmm import meteora_lp_api
+from meteora_project.db import setup_database, insert_api_entry
+from meteora_project import config
 
 # Configure logging (adjust level as needed)
 logging.basicConfig(level=logging.INFO)
