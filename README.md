@@ -1,4 +1,3 @@
-```markdown
 # Meteora API Time Series Collector
 
 This project is a Python application that periodically polls the Meteora API to collect data and stores it into a SQLite database. The application is designed to build a time series of API responses for further analysis.
@@ -86,4 +85,3 @@ This project is open source and available under the [MIT License](LICENSE).
 ## Contributing
 
 Feel free to submit issues or pull requests if you have suggestions or improvements.
-```
