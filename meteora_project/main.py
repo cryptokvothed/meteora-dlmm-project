@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sqlite3
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apis.meteora_dlmm import meteora_lp_api
 from db import setup_database, insert_meteora_api_entry
@@ -11,8 +12,10 @@ import config
 logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
-def run_job(conn):
+def run_job():
     """Fetch API data, insert it into the database, and log progress."""
+
+    conn = sqlite3.connect(config.DB_FILENAME)
     try:
         # Fetch data from the API along with the API return timestamp.
         data, api_timestamp = meteora_lp_api()
@@ -42,10 +45,10 @@ def run_job(conn):
 
 if __name__ == "__main__":
     # Set up the SQLite database.
-    conn = setup_database(config.DB_FILENAME)
+    setup_database(config.DB_FILENAME)
 
     # Run the job immediately on startup
-    run_job(conn)
+    run_job()
 
     # Create a blocking scheduler
     scheduler = BlockingScheduler()
