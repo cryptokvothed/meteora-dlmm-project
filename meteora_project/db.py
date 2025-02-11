@@ -180,7 +180,7 @@ def insert_meteora_api_entry(conn, entry, api_timestamp):
 
     # Insert the history data into the dlmm_pair_meteora_history table
     add_dlmm_pair_meteora_history(conn, dlmm_pair_meteora_history_tuple)
-    logger.info("DLMM pair added: %s", dlmm_pair_tuple[2])
+    logger.debug("DLMM pair added to database: %s", dlmm_pair_tuple[2])
 
 
 def add_token(conn, created_at, address, symbol):

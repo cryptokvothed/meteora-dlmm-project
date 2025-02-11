@@ -8,7 +8,7 @@ from db import setup_database, insert_meteora_api_entry
 import config
 
 # Configure logging (adjust level as needed)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 def run_job():
@@ -24,7 +24,7 @@ def run_job():
         if isinstance(data, dict) and "pairs" in data:
             entries = data["pairs"]
             total_entries = data.get("total", len(entries))
-            logger.info("Total entries reported by API: %s", total_entries)
+            logger.debug("Total entries reported by API: %s", total_entries)
         else:
             entries = data
 
@@ -33,11 +33,11 @@ def run_job():
 
         # Insert each entry into the database.
         for entry in entries:
-            logger.info("Inserting entry: %s", json.dumps(entry, indent=4))
+            logger.debug("Inserting entry: %s", json.dumps(entry, indent=4))
             insert_meteora_api_entry(conn, entry, api_timestamp)
 
         conn.close()
-        logger.info("Job complete at %s", api_timestamp)
+        logger.debug("Job complete at %s", api_timestamp)
 
     except Exception as e:
         # Log the exception stack trace for debugging.

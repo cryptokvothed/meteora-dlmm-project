@@ -37,6 +37,6 @@ def meteora_lp_api(page=1, limit=config.DEFAULT_LIMIT, order_by='desc', skip_siz
     
     data = response.json()
     api_timestamp = datetime.now(timezone.utc).isoformat()
-    logger.info("API Response Timestamp: %s", api_timestamp)
+    logger.debug("API Response Timestamp: %s", api_timestamp)
     logger.debug("API Response: %s", json.dumps(data, indent=4))
     return data, api_timestamp
