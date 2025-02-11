@@ -1,34 +1,3 @@
-CREATE TABLE IF NOT EXISTS tokens (
-  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  created_at REAL NOT NULL,
-  address TEXT(44) NOT NULL,
-  symbol TEXT
-);
-CREATE TABLE IF NOT EXISTS dlmm_pairs (
-  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  created_at REAL NOT NULL,
-  address TEXT(44) NOT NULL,
-  name TEXT NOT NULL,
-  mint_x_id INTEGER NOT NULL,
-  mint_y_id INTEGER NOT NULL,
-  bin_step INTEGER NOT NULL,
-  base_fee_percentage REAL NOT NULL,
-  hide INTEGER DEFAULT (0) NOT NULL,
-  is_blacklisted INTEGER DEFAULT (0) NOT NULL,
-  CONSTRAINT dlmm_pairs_x_tokens_FK FOREIGN KEY (mint_x_id) REFERENCES tokens(id) ON DELETE CASCADE ON UPDATE RESTRICT,
-  CONSTRAINT dlmm_pairs_y_tokens_FK FOREIGN KEY (mint_y_id) REFERENCES tokens(id) ON DELETE CASCADE ON UPDATE RESTRICT
-);
-CREATE UNIQUE INDEX IF NOT EXISTS dlmm_pairs_address_IDX ON dlmm_pairs (address);
-CREATE TABLE IF NOT EXISTS dlmm_pair_meteora_history (
-  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  created_at REAL NOT NULL,
-  dlmm_pair_id INTEGER NOT NULL,
-  price REAL NOT NULL,
-  liquidity REAL NOT NULL,
-  cumulative_trade_volume REAL NOT NULL,
-  cumulative_fee_volume REAL NOT NULL,
-  CONSTRAINT dlmm_pair_meteora_history_dlmm_pairs_FK FOREIGN KEY (dlmm_pair_id) REFERENCES dlmm_pairs(id) ON DELETE CASCADE ON UPDATE RESTRICT
-);
 DROP VIEW IF EXISTS v_dlmm_history;
 CREATE VIEW IF NOT EXISTS v_dlmm_history AS WITH history AS (
   SELECT h.created_at,
@@ -159,8 +128,4 @@ CREATE VIEW IF NOT EXISTS v_dlmm_opportunities AS WITH aggregates_by_pair AS (
 )
 SELECT *
 FROM aggregates_by_pair
-WHERE pct_minutes_with_volume > 50
-  AND minutes_elapsed = (
-    SELECT MAX(minutes_elapsed)
-    from aggregates_by_pair
-  );
+WHERE pct_minutes_with_volume > 50;
