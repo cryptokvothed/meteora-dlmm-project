@@ -14,136 +14,209 @@ def setup_database(db_name=config.DB_FILENAME):
     """
     conn = sqlite3.connect(db_name)
     cursor = conn.cursor()
+
+    # Create the tokens table
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS api_entries (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at TEXT,
-            api_returned_at TEXT,
-            address TEXT,
-            name TEXT,
-            mint_x TEXT,
-            mint_y TEXT,
-            reserve_x TEXT,
-            reserve_y TEXT,
-            reserve_x_amount INTEGER,
-            reserve_y_amount INTEGER,
-            bin_step INTEGER,
-            base_fee_percentage TEXT,
-            max_fee_percentage TEXT,
-            protocol_fee_percentage TEXT,
-            liquidity TEXT,
-            reward_mint_x TEXT,
-            reward_mint_y TEXT,
-            fees_24h REAL,
-            today_fees REAL,
-            trade_volume_24h REAL,
-            cumulative_trade_volume TEXT,
-            cumulative_fee_volume TEXT,
-            current_price REAL,
-            apr REAL,
-            apy REAL,
-            farm_apr REAL,
-            farm_apy REAL,
-            hide BOOLEAN,
-            is_blacklisted BOOLEAN,
-            fees TEXT,
-            fee_tvl_ratio TEXT
+        CREATE TABLE IF NOT EXISTS tokens (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            created_at REAL NOT NULL,
+            address TEXT(44) NOT NULL,
+            symbol TEXT
         )
     ''')
     conn.commit()
+    cursor.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS tokens_address_IDX ON tokens (address)
+    ''')
+    conn.commit()
+
+    # Create the dlmm_pairs table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS dlmm_pairs (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            created_at REAL NOT NULL,
+            address TEXT(44) NOT NULL,
+            name TEXT NOT NULL,
+            mint_x_id INTEGER NOT NULL,
+            mint_y_id INTEGER NOT NULL,
+            bin_step INTEGER NOT NULL,
+            base_fee_percentage REAL NOT NULL,
+            hide INTEGER DEFAULT (0) NOT NULL,
+            is_blacklisted INTEGER DEFAULT (0) NOT NULL,
+            CONSTRAINT dlmm_pairs_x_tokens_FK FOREIGN KEY (mint_x_id) REFERENCES tokens(id) ON DELETE CASCADE ON UPDATE RESTRICT,
+            CONSTRAINT dlmm_pairs_y_tokens_FK FOREIGN KEY (mint_y_id) REFERENCES tokens(id) ON DELETE CASCADE ON UPDATE RESTRICT
+        )
+    ''')
+    conn.commit()
+    cursor.execute('''
+        CREATE UNIQUE INDEX IF NOT EXISTS dlmm_pairs_address_IDX ON dlmm_pairs (address)
+    ''')
+    conn.commit()
+
+    # Create the dlmm_pair_meteora_history table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS dlmm_pair_meteora_history (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            created_at REAL NOT NULL,
+            dlmm_pair_id INTEGER NOT NULL,
+            price REAL NOT NULL,
+            liquidity REAL NOT NULL,
+            cumulative_trade_volume REAL NOT NULL,
+            cumulative_fee_volume REAL NOT NULL,
+            CONSTRAINT dlmm_pair_meteora_history_dlmm_pairs_FK FOREIGN KEY (dlmm_pair_id) REFERENCES dlmm_pairs(id) ON DELETE CASCADE ON UPDATE RESTRICT
+        )
+    ''')
+    conn.commit()
+
+    # Create a view to join all the tables
+    cursor.execute('''
+        CREATE VIEW IF NOT EXISTS v_dlmm_history AS
+        SELECT 
+            h.created_at,
+            p.name AS pair_name,
+            p.address AS pair_address,
+            p.bin_step,
+            p.base_fee_percentage,
+            h.price,
+            h.liquidity,
+            h.cumulative_trade_volume,
+            h.cumulative_fee_volume,
+            p.bin_step,
+            p.base_fee_percentage,
+            t_x.address AS token_x_address,
+            t_x.symbol AS token_x_symbol,
+            t_y.address AS token_y_address,
+            t_y.symbol AS token_y_symbol
+        FROM 
+            dlmm_pair_meteora_history h
+            JOIN dlmm_pairs p ON h.dlmm_pair_id = p.id
+            JOIN tokens t_x ON p.mint_x_id = t_x.id
+            JOIN tokens t_y ON p.mint_y_id = t_y.id
+        WHERE 
+            is_blacklisted = 0
+    ''')
+    conn.commit()
+
     logger.info("Database setup complete.")
     return conn
 
-def insert_api_entry(conn, entry, api_timestamp):
+def insert_meteora_api_entry(conn, entry, api_timestamp):
     """
-    Inserts a single API entry (a dict) into the SQLite database.
+    Reads data from the Meteora API and inserts into the SQLite tables
     
-    Two datetime fields are recorded:
-      - created_at: when the insertion is done.
-      - api_returned_at: when the API call returned data.
-      
-    Nested dictionaries (e.g., 'fees' and 'fee_tvl_ratio') are stored as JSON strings.
     """
-    cursor = conn.cursor()
-    created_at = datetime.now(timezone.utc).isoformat()  # Insertion timestamp
+    created_at = datetime.now(timezone.utc).timestamp()  # Convert to unix
 
-    # Convert nested dicts to JSON strings
-    fees_json = json.dumps(entry.get("fees", {}))
-    fee_tvl_ratio_json = json.dumps(entry.get("fee_tvl_ratio", {}))
+    # Get the symbols from the market name
+    symbols = entry.get("name").split("-")
 
-    # Construct the data tuple with exactly 31 values.
-    data_tuple = (
-        created_at,                           # 1. created_at
-        api_timestamp,                        # 2. api_returned_at
-        entry.get("address"),                 # 3. address
-        entry.get("name"),                    # 4. name
-        entry.get("mint_x"),                  # 5. mint_x
-        entry.get("mint_y"),                  # 6. mint_y
-        entry.get("reserve_x"),               # 7. reserve_x
-        entry.get("reserve_y"),               # 8. reserve_y
-        entry.get("reserve_x_amount"),        # 9. reserve_x_amount
-        entry.get("reserve_y_amount"),        # 10. reserve_y_amount
-        entry.get("bin_step"),                # 11. bin_step
-        entry.get("base_fee_percentage"),     # 12. base_fee_percentage
-        entry.get("max_fee_percentage"),      # 13. max_fee_percentage
-        entry.get("protocol_fee_percentage"), # 14. protocol_fee_percentage
-        entry.get("liquidity"),               # 15. liquidity
-        entry.get("reward_mint_x"),           # 16. reward_mint_x
-        entry.get("reward_mint_y"),           # 17. reward_mint_y
-        entry.get("fees_24h"),                # 18. fees_24h
-        entry.get("today_fees"),              # 19. today_fees
-        entry.get("trade_volume_24h"),        # 20. trade_volume_24h
-        entry.get("cumulative_trade_volume"), # 21. cumulative_trade_volume
-        entry.get("cumulative_fee_volume"),   # 22. cumulative_fee_volume
-        entry.get("current_price"),           # 23. current_price
-        entry.get("apr"),                     # 24. apr
-        entry.get("apy"),                     # 25. apy
-        entry.get("farm_apr"),                # 26. farm_apr
-        entry.get("farm_apy"),                # 27. farm_apy
-        entry.get("hide"),                    # 28. hide
-        entry.get("is_blacklisted"),          # 29. is_blacklisted
-        fees_json,                            # 30. fees (as JSON string)
-        fee_tvl_ratio_json                    # 31. fee_tvl_ratio (as JSON string)
+    # Add the x token
+    mint_x_id = add_token(conn, created_at, entry.get("mint_x"), symbols[0])
+
+    # Add the y token
+    mint_y_id = add_token(conn, created_at, entry.get("mint_y"), symbols[1])
+
+    # Create the dlmm_pair tuple
+    dlmm_pair_tuple = (
+        created_at,
+        entry.get("address"),
+        entry.get("name"),
+        mint_x_id,
+        mint_y_id,
+        entry.get("bin_step"),
+        float(entry.get("base_fee_percentage")),
+        int(entry.get("hide", 0)),
+        int(entry.get("is_blacklisted", 0))
     )
 
-    # Debug print to verify the number of values (should print 31)
-    print("Number of values to insert:", len(data_tuple))
-    
+    # Insert the dlmm_pair into the database
+    dlmm_pair_id = add_dlmm_pair(conn, dlmm_pair_tuple)
+
+    # Create the dlmm_pair_meteora_history tuple
+    dlmm_pair_meteora_history_tuple = (
+        created_at,
+        dlmm_pair_id,
+        entry.get("current_price"),
+        float(entry.get("liquidity")),
+        float(entry.get("cumulative_trade_volume")),
+        float(entry.get("cumulative_fee_volume"))
+    )
+
+    # Insert the history data into the dlmm_pair_meteora_history table
+    add_dlmm_pair_meteora_history(conn, dlmm_pair_meteora_history_tuple)
+    logger.info("DLMM pair added: %s", dlmm_pair_tuple[2])
+
+
+def add_token(conn, created_at, address, symbol):
+    """
+    Adds a token to the database.
+    """
+    cursor = conn.cursor()
+
+    # Insert the token into the tokens table
     cursor.execute('''
-        INSERT INTO api_entries (
+        INSERT OR IGNORE INTO tokens (
             created_at,
-            api_returned_at,
+            address,
+            symbol
+        )
+        VALUES (?, ?, ?)
+    ''', (created_at, address, symbol))
+    conn.commit()
+
+    # Get the token id and return it
+    cursor.execute('''
+        SELECT id FROM tokens WHERE address = ?
+    ''', (address,))
+    result = cursor.fetchone()
+    return result[0] if result else None    
+
+def add_dlmm_pair(conn, dlmm_pair_tuple):
+    """
+    Adds a DLMM pair to the database.
+    """
+    cursor = conn.cursor()
+
+    # Insert the DLMM pair into the dlmm_pairs table
+    cursor.execute('''
+        INSERT OR IGNORE INTO dlmm_pairs (
+            created_at,
             address,
             name,
-            mint_x,
-            mint_y,
-            reserve_x,
-            reserve_y,
-            reserve_x_amount,
-            reserve_y_amount,
+            mint_x_id,
+            mint_y_id,
             bin_step,
             base_fee_percentage,
-            max_fee_percentage,
-            protocol_fee_percentage,
-            liquidity,
-            reward_mint_x,
-            reward_mint_y,
-            fees_24h,
-            today_fees,
-            trade_volume_24h,
-            cumulative_trade_volume,
-            cumulative_fee_volume,
-            current_price,
-            apr,
-            apy,
-            farm_apr,
-            farm_apy,
             hide,
-            is_blacklisted,
-            fees,
-            fee_tvl_ratio
+            is_blacklisted
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', data_tuple)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', dlmm_pair_tuple)
     conn.commit()
-    logger.info("Entry inserted into database.")
+
+    # Get the DLMM pair id and return it
+    cursor.execute('''
+        SELECT id FROM dlmm_pairs WHERE address = ?
+    ''', (dlmm_pair_tuple[1],))
+    result = cursor.fetchone()
+    return result[0] if result else None
+
+def add_dlmm_pair_meteora_history(conn, dlmm_pair_meteora_history_tuple):
+    """
+    Adds a DLMM pair meteora history entry to the database.
+    """
+    cursor = conn.cursor()
+
+    # Insert the DLMM pair meteora history entry into the dlmm_pair_meteora_history table
+    cursor.execute('''
+        INSERT INTO dlmm_pair_meteora_history (
+            created_at,
+            dlmm_pair_id,
+            price,
+            liquidity,
+            cumulative_trade_volume,
+            cumulative_fee_volume
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', dlmm_pair_meteora_history_tuple)
+    conn.commit()

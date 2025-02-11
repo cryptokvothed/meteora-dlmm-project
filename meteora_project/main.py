@@ -3,9 +3,9 @@
 import json
 import logging
 from apscheduler.schedulers.blocking import BlockingScheduler
-from meteora_project.apis.meteora_dlmm import meteora_lp_api
-from meteora_project.db import setup_database, insert_api_entry
-from meteora_project import config
+from apis.meteora_dlmm import meteora_lp_api
+from db import setup_database, insert_meteora_api_entry
+import config
 
 # Configure logging (adjust level as needed)
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +34,7 @@ def run_job():
         # Insert each entry into the database.
         for entry in entries:
             logger.info("Inserting entry: %s", json.dumps(entry, indent=4))
-            insert_api_entry(conn, entry, api_timestamp)
+            insert_meteora_api_entry(conn, entry, api_timestamp)
 
         conn.close()
         logger.info("Job complete at %s", api_timestamp)
@@ -44,6 +44,9 @@ def run_job():
         logger.exception("Exception occurred while running the scheduled job: %s", e)
 
 if __name__ == "__main__":
+    # Run the job immediately on startup
+    run_job()
+
     # Create a blocking scheduler
     scheduler = BlockingScheduler()
 
