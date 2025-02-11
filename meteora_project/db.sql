@@ -119,8 +119,10 @@ DROP VIEW IF EXISTS v_dlmm_opportunities;
 CREATE VIEW IF NOT EXISTS v_dlmm_opportunities AS WITH aggregates_by_pair AS (
   SELECT pair_name,
     pair_address,
-    MIN(created_at) first_update,
-    MAX(created_at) last_update,
+    bin_step,
+    base_fee_percentage,
+    DATETIME(MIN(created_at), 'unixepoch') first_update,
+    DATETIME(MAX(created_at), 'unixepoch') last_update,
     ROUND(SUM(minutes_elapsed), 0) minutes_elapsed,
     ROUND(SUM(volume), 2) volume,
     ROUND(SUM(fees), 2) fees,
@@ -153,8 +155,11 @@ CREATE VIEW IF NOT EXISTS v_dlmm_opportunities AS WITH aggregates_by_pair AS (
     ) fee_liquidity_pct_24h
   FROM v_dlmm_history
   WHERE created_at >= strftime('%s', 'now') - 60 * 15
+    AND ROUND(minutes_elapsed) = 1
   GROUP BY pair_name,
-    pair_address
+    pair_address,
+    bin_step,
+    base_fee_percentage
   ORDER BY SUM(fees * minutes_elapsed) / SUM(liquidity * minutes_elapsed) DESC
 )
 SELECT *
