@@ -1,2 +1,4 @@
+.gitignore
 venv/
 api_entries.db
+**/__pycache__/
