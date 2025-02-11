@@ -141,7 +141,7 @@ CREATE VIEW IF NOT EXISTS v_dlmm_opportunities AS WITH aggregates_by_pair AS (
       2
     ) fee_liquidity_pct_24h
   FROM v_dlmm_history
-  WHERE total_minutes_elapsed >= 15
+  WHERE created_at >= strftime('%s', 'now') - 60 * 15
   GROUP BY pair_name,
     pair_address
   ORDER BY SUM(fees * minutes_elapsed) / SUM(liquidity * minutes_elapsed) DESC
