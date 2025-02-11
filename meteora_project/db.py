@@ -71,29 +71,65 @@ def setup_database(db_name=config.DB_FILENAME):
     # Create a view to join all the tables
     cursor.execute('''
         CREATE VIEW IF NOT EXISTS v_dlmm_history AS
+        WITH history AS (
+            SELECT 
+                h.created_at,
+                DATETIME(h.created_at, 'unixepoch') iso_date,
+                p.name AS pair_name,
+                p.address AS pair_address,
+                p.bin_step,
+                p.base_fee_percentage,
+                h.price,
+                h.liquidity,
+                h.cumulative_trade_volume,
+                h.cumulative_fee_volume
+            FROM 
+                dlmm_pair_meteora_history h
+                JOIN dlmm_pairs p ON h.dlmm_pair_id = p.id
+                JOIN tokens t_x ON p.mint_x_id = t_x.id
+                JOIN tokens t_y ON p.mint_y_id = t_y.id
+            WHERE 
+                is_blacklisted = 0
+        ),
+        prior_history_records AS (
+            SELECT
+                created_at,
+                iso_date,
+                pair_name,
+                pair_address,
+                bin_step,
+                bin_step base_fee_percentage,
+                LAG(created_at) OVER (PARTITION BY pair_address ORDER BY created_at) prior_created_at,
+                LAG(price) OVER (PARTITION BY pair_address ORDER BY created_at) prior_price,
+                LAG(liquidity) OVER (PARTITION BY pair_address ORDER BY created_at) prior_liquidity,
+                LAG(cumulative_trade_volume) OVER (PARTITION BY pair_address ORDER BY created_at) prior_cumulative_trade_volume,
+                LAG(cumulative_fee_volume) OVER (PARTITION BY pair_address ORDER BY created_at) prior_cumulative_fee_volume,
+                price,
+                liquidity,
+                cumulative_trade_volume,
+                cumulative_fee_volume
+            FROM
+                history
+            ORDER BY
+                pair_address,
+                created_at
+        )
         SELECT 
-            h.created_at,
-            p.name AS pair_name,
-            p.address AS pair_address,
-            p.bin_step,
-            p.base_fee_percentage,
-            h.price,
-            h.liquidity,
-            h.cumulative_trade_volume,
-            h.cumulative_fee_volume,
-            p.bin_step,
-            p.base_fee_percentage,
-            t_x.address AS token_x_address,
-            t_x.symbol AS token_x_symbol,
-            t_y.address AS token_y_address,
-            t_y.symbol AS token_y_symbol
+            created_at,
+            iso_date,
+            pair_name,
+            pair_address,
+            bin_step,
+            bin_step base_fee_percentage,
+            (created_at - prior_created_at) minutes_elapsed,
+            (liquidity + prior_liquidity) / 2 liquidity,
+            cumulative_trade_volume - prior_cumulative_trade_volume volume,
+            cumulative_fee_volume - prior_cumulative_fee_volume fees,
+            (cumulative_fee_volume - prior_cumulative_fee_volume) / ((liquidity + prior_liquidity) / 2) * 60 * 60 * 24 / (created_at - prior_created_at) fee_liquity_24h
         FROM 
-            dlmm_pair_meteora_history h
-            JOIN dlmm_pairs p ON h.dlmm_pair_id = p.id
-            JOIN tokens t_x ON p.mint_x_id = t_x.id
-            JOIN tokens t_y ON p.mint_y_id = t_y.id
-        WHERE 
-            is_blacklisted = 0
+            prior_history_records
+        WHERE
+            prior_created_at IS NOT NULL
     ''')
     conn.commit()
 
