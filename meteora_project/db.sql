@@ -111,3 +111,45 @@ SELECT created_at,
   volume,
   fees
 FROM elapsed_time;
+DROP VIEW IF EXISTS v_dlmm_opportunities;
+CREATE VIEW IF NOT EXISTS v_dlmm_opportunities AS WITH aggregates_by_pair AS (
+  SELECT pair_name,
+    pair_address,
+    MIN(created_at) first_update,
+    MAX(created_at) last_update,
+    ROUND(SUM(minutes_elapsed), 0) minutes_elapsed,
+    ROUND(SUM(volume), 2) volume,
+    ROUND(SUM(fees), 2) fees,
+    ROUND(
+      SUM(
+        CASE
+          WHEN volume > 0 THEN 1.0
+          ELSE 0.0
+        END
+      ) / COUNT(),
+      3
+    ) * 100.0 pct_minutes_with_volume,
+    ROUND(MIN(liquidity), 2) min_liquidity,
+    ROUND(MAX(liquidity), 2) max_liquidity,
+    ROUND(
+      SUM(liquidity * minutes_elapsed) / SUM(minutes_elapsed),
+      2
+    ) avg_liquidity,
+    ROUND(SUM(fees) / AVG(liquidity) * 100, 2) total_fee_avg_liquidity,
+    ROUND(
+      SUM(fees * minutes_elapsed) / SUM(liquidity * minutes_elapsed) * 1440 * 100,
+      2
+    ) fee_liquidity_pct_24h
+  FROM v_dlmm_history
+  WHERE total_minutes_elapsed >= 15
+  GROUP BY pair_name,
+    pair_address
+  ORDER BY SUM(fees * minutes_elapsed) / SUM(liquidity * minutes_elapsed) DESC
+)
+SELECT *
+FROM aggregates_by_pair
+WHERE pct_minutes_with_volume > 50
+  AND minutes_elapsed = (
+    SELECT MAX(minutes_elapsed)
+    from aggregates_by_pair
+  );
