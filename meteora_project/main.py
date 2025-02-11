@@ -1,5 +1,6 @@
 # main.py
 
+from datetime import datetime, timezone
 import json
 import logging
 import sqlite3
@@ -34,7 +35,8 @@ def run_job():
         # Insert each entry into the database.
         for entry in entries:
             logger.debug("Inserting entry: %s", json.dumps(entry, indent=4))
-            insert_meteora_api_entry(conn, entry, api_timestamp)
+            created_at = datetime.now(timezone.utc).timestamp()  # Convert to unix
+            insert_meteora_api_entry(conn, entry, created_at)
 
         conn.close()
         logger.debug("Job complete at %s", api_timestamp)

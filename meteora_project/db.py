@@ -1,8 +1,6 @@
 # db.py
 
 import sqlite3
-import json
-from datetime import datetime, timezone
 import logging
 import config
 
@@ -32,13 +30,11 @@ def setup_database(db_name=config.DB_FILENAME):
     logger.info("Database setup complete.")
     return conn
 
-def insert_meteora_api_entry(conn, entry, api_timestamp):
+def insert_meteora_api_entry(conn, entry, created_at):
     """
     Reads data from the Meteora API and inserts into the SQLite tables
     
     """
-    created_at = datetime.now(timezone.utc).timestamp()  # Convert to unix
-
     # Get the symbols from the market name
     symbols = entry.get("name").split("-")
 
