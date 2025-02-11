@@ -1,5 +1,6 @@
 # db.py
 
+import os
 import sqlite3
 import logging
 import config
@@ -14,7 +15,8 @@ def setup_database(db_name=config.DB_FILENAME):
     cursor = conn.cursor()
 
     # Open the SQL file
-    with open("db.sql", 'r') as sql_file:
+    working_dir = os.path.dirname(os.path.abspath(__file__))
+    with open(working_dir + "/db.sql", 'r') as sql_file:
         sql_script = sql_file.read()
         sql_commands = sql_script.split(';')
 
