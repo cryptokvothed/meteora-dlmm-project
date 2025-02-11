@@ -11,7 +11,7 @@ import config
 logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
-def run_job():
+def run_job(conn):
     """Fetch API data, insert it into the database, and log progress."""
     try:
         # Fetch data from the API along with the API return timestamp.
@@ -28,9 +28,6 @@ def run_job():
         else:
             entries = data
 
-        # Set up the SQLite database.
-        conn = setup_database(config.DB_FILENAME)
-
         # Insert each entry into the database.
         for entry in entries:
             logger.debug("Inserting entry: %s", json.dumps(entry, indent=4))
@@ -44,8 +41,11 @@ def run_job():
         logger.exception("Exception occurred while running the scheduled job: %s", e)
 
 if __name__ == "__main__":
+    # Set up the SQLite database.
+    conn = setup_database(config.DB_FILENAME)
+
     # Run the job immediately on startup
-    run_job()
+    run_job(conn)
 
     # Create a blocking scheduler
     scheduler = BlockingScheduler()
