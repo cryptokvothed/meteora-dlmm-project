@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS dlmm_pair_meteora_history (
   cumulative_fee_volume REAL NOT NULL,
   CONSTRAINT dlmm_pair_meteora_history_dlmm_pairs_FK FOREIGN KEY (dlmm_pair_id) REFERENCES dlmm_pairs(id) ON DELETE CASCADE ON UPDATE RESTRICT
 );
-DROP VIEW IF EXISTS v_dlmm_pairs;
+DROP VIEW IF EXISTS v_dlmm_history;
 CREATE VIEW IF NOT EXISTS v_dlmm_history AS WITH history AS (
   SELECT h.created_at,
     DATETIME(h.created_at, 'unixepoch') iso_date,
@@ -90,6 +90,8 @@ elapsed_time AS (
     bin_step,
     bin_step base_fee_percentage,
     (created_at - prior_created_at) / 60 minutes_elapsed,
+    price,
+    prior_price,
     (liquidity + prior_liquidity) / 2 liquidity,
     cumulative_trade_volume - prior_cumulative_trade_volume volume,
     cumulative_fee_volume - prior_cumulative_fee_volume fees
@@ -103,6 +105,8 @@ SELECT created_at,
   bin_step,
   base_fee_percentage,
   minutes_elapsed,
+  price,
+  prior_price,
   SUM(minutes_elapsed) OVER (
     PARTITION BY pair_address
     ORDER BY created_at
@@ -120,6 +124,13 @@ CREATE VIEW IF NOT EXISTS v_dlmm_opportunities AS WITH aggregates_by_pair AS (
     ROUND(SUM(minutes_elapsed), 0) minutes_elapsed,
     ROUND(SUM(volume), 2) volume,
     ROUND(SUM(fees), 2) fees,
+    MIN(price) min_price,
+    MAX(price) max_price,
+    AVG(price) avg_price,
+    ROUND((MAX(price) - MIN(price)) / MIN(price) * 10000) price_movement_bps,
+    ROUND(
+      (MAX(price) - MIN(price)) / MIN(price) * 10000 / bin_step
+    ) price_movement_bins,
     ROUND(
       SUM(
         CASE
