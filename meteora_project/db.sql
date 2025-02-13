@@ -117,5 +117,5 @@ SELECT *
 FROM pair_stats
 WHERE pct_minutes_with_volume > 50
   AND fees > 100
-  AND total_minutes = 30
+  AND total_minutes >= 29
 ORDER BY time_weighted_fees_tvl_projected_24h DESC;
