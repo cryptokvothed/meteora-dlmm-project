@@ -4,7 +4,8 @@ import logging
 
 # API Configuration
 API_BASE_URL = "https://dlmm-api.meteora.ag"
-DEFAULT_LIMIT = 100
+
+# Logging Configuration
 LOG_LEVEL = logging.INFO  # Set to logging.DEBUG for more verbose output
 
 # Database configuration

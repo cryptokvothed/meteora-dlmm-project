@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS tokens (
   address TEXT(44) NOT NULL,
   symbol TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS tokens_address_IDX ON tokens (address);
 CREATE TABLE IF NOT EXISTS dlmm_pairs (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
   created_at REAL NOT NULL,
@@ -15,153 +16,106 @@ CREATE TABLE IF NOT EXISTS dlmm_pairs (
   base_fee_percentage REAL NOT NULL,
   hide INTEGER DEFAULT (0) NOT NULL,
   is_blacklisted INTEGER DEFAULT (0) NOT NULL,
+  tracked_volume REAL DEFAULT (0) NOT NULL,
+  tracked_fees REAL DEFAULT (0) NOT NULL,
   CONSTRAINT dlmm_pairs_x_tokens_FK FOREIGN KEY (mint_x_id) REFERENCES tokens(id) ON DELETE CASCADE ON UPDATE RESTRICT,
   CONSTRAINT dlmm_pairs_y_tokens_FK FOREIGN KEY (mint_y_id) REFERENCES tokens(id) ON DELETE CASCADE ON UPDATE RESTRICT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS dlmm_pairs_address_IDX ON dlmm_pairs (address);
-CREATE TABLE IF NOT EXISTS dlmm_pair_meteora_history (
+CREATE INDEX IF NOT EXISTS dlmm_pairs_tracked_fees_IDX ON dlmm_pairs (tracked_fees);
+CREATE INDEX IF NOT EXISTS dlmm_pairs_fees_id_IDX ON dlmm_pairs (tracked_fees, id);
+CREATE TABLE IF NOT EXISTS dlmm_pair_history_updates (
   id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-  created_at REAL NOT NULL,
+  created_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS dlmm_pair_history (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  update_id INTEGER NOT NULL,
   dlmm_pair_id INTEGER NOT NULL,
   price REAL NOT NULL,
   liquidity REAL NOT NULL,
   cumulative_trade_volume REAL NOT NULL,
   cumulative_fee_volume REAL NOT NULL,
-  CONSTRAINT dlmm_pair_meteora_history_dlmm_pairs_FK FOREIGN KEY (dlmm_pair_id) REFERENCES dlmm_pairs(id) ON DELETE CASCADE ON UPDATE RESTRICT
+  minutes_since_last_update REAL,
+  volume REAL,
+  fee_volume REAL,
+  CONSTRAINT dlmm_pair_history_dlmm_pairs_FK FOREIGN KEY (dlmm_pair_id) REFERENCES dlmm_pairs(id) ON DELETE CASCADE ON UPDATE RESTRICT,
+  CONSTRAINT dlmm_pair_history_dlmm_pair_history_updates_FK FOREIGN KEY (update_id) REFERENCES dlmm_pair_history_updates(id) ON DELETE CASCADE ON UPDATE RESTRICT
 );
-DROP VIEW IF EXISTS v_dlmm_history;
-CREATE VIEW IF NOT EXISTS v_dlmm_history AS WITH history AS (
-  SELECT h.created_at,
-    DATETIME(h.created_at, 'unixepoch') iso_date,
-    p.name AS pair_name,
-    p.address AS pair_address,
+CREATE INDEX IF NOT EXISTS dlmm_pair_history_update_id_IDX ON dlmm_pair_history (update_id);
+CREATE INDEX IF NOT EXISTS dlmm_pair_history_dlmm_pair_id_IDX ON dlmm_pair_history (dlmm_pair_id);
+CREATE INDEX IF NOT EXISTS dlmm_pair_history_update_id_dlmm_pair_id_IDX ON dlmm_pair_history(update_id, dlmm_pair_id);
+CREATE VIEW v_dlmm_opportunities AS WITH history AS (
+  SELECT h.update_id,
+    DATETIME(u.created_at, 'unixepoch') update_time,
+    h.dlmm_pair_id pair_id,
+    p.address pair_address,
+    p.name pair_name,
     p.bin_step,
     p.base_fee_percentage,
+    h.minutes_since_last_update,
     h.price,
     h.liquidity,
-    h.cumulative_trade_volume,
-    h.cumulative_fee_volume
-  FROM dlmm_pair_meteora_history h
+    h.volume,
+    h.fee_volume
+  FROM dlmm_pair_history h
     JOIN dlmm_pairs p ON h.dlmm_pair_id = p.id
-    JOIN tokens t_x ON p.mint_x_id = t_x.id
-    JOIN tokens t_y ON p.mint_y_id = t_y.id
-  WHERE is_blacklisted = 0
+    JOIN dlmm_pair_history_updates u ON h.update_id = u.id
+  WHERE h.update_id > 1
 ),
-prior_history_records AS (
-  SELECT created_at,
-    iso_date,
+pair_stats AS (
+  SELECT pair_address,
     pair_name,
-    pair_address,
-    bin_step,
-    bin_step base_fee_percentage,
-    LAG(created_at) OVER (
-      PARTITION BY pair_address
-      ORDER BY created_at
-    ) prior_created_at,
-    LAG(price) OVER (
-      PARTITION BY pair_address
-      ORDER BY created_at
-    ) prior_price,
-    LAG(liquidity) OVER (
-      PARTITION BY pair_address
-      ORDER BY created_at
-    ) prior_liquidity,
-    LAG(cumulative_trade_volume) OVER (
-      PARTITION BY pair_address
-      ORDER BY created_at
-    ) prior_cumulative_trade_volume,
-    LAG(cumulative_fee_volume) OVER (
-      PARTITION BY pair_address
-      ORDER BY created_at
-    ) prior_cumulative_fee_volume,
-    price,
-    liquidity,
-    cumulative_trade_volume,
-    cumulative_fee_volume
-  FROM history
-  ORDER BY pair_address,
-    created_at
-),
-elapsed_time AS (
-  SELECT created_at,
-    iso_date,
-    pair_name,
-    pair_address,
-    bin_step,
-    bin_step base_fee_percentage,
-    (created_at - prior_created_at) / 60 minutes_elapsed,
-    price,
-    prior_price,
-    (liquidity + prior_liquidity) / 2 liquidity,
-    cumulative_trade_volume - prior_cumulative_trade_volume volume,
-    cumulative_fee_volume - prior_cumulative_fee_volume fees
-  FROM prior_history_records
-  WHERE prior_created_at IS NOT NULL
-)
-SELECT created_at,
-  iso_date,
-  pair_name,
-  pair_address,
-  bin_step,
-  base_fee_percentage,
-  minutes_elapsed,
-  price,
-  prior_price,
-  SUM(minutes_elapsed) OVER (
-    PARTITION BY pair_address
-    ORDER BY created_at
-  ) total_minutes_elapsed,
-  liquidity,
-  volume,
-  fees
-FROM elapsed_time;
-DROP VIEW IF EXISTS v_dlmm_opportunities;
-CREATE VIEW IF NOT EXISTS v_dlmm_opportunities AS WITH aggregates_by_pair AS (
-  SELECT pair_name,
-    pair_address,
     bin_step,
     base_fee_percentage,
-    DATETIME(MIN(created_at), 'unixepoch') first_update,
-    DATETIME(MAX(created_at), 'unixepoch') last_update,
-    ROUND(SUM(minutes_elapsed), 0) minutes_elapsed,
-    ROUND(SUM(volume), 2) volume,
-    ROUND(SUM(fees), 2) fees,
+    SUM(ROUND(minutes_since_last_update)) total_minutes,
+    SUM(
+      CASE
+        WHEN fee_volume > 0 THEN 1
+        ELSE 0
+      END
+    ) num_minutes_with_volume,
+    ROUND(
+      100.0 * SUM(
+        CASE
+          WHEN fee_volume > 0 THEN 1
+          ELSE 0
+        END
+      ) / COUNT(*)
+    ) pct_minutes_with_volume,
     MIN(price) min_price,
     MAX(price) max_price,
     AVG(price) avg_price,
-    ROUND((MAX(price) - MIN(price)) / MIN(price) * 10000) price_movement_bps,
+    ROUND(10000 * (MAX(price) - MIN(PRICE)) / MIN(PRICE)) bps_range,
+    CEIL(
+      10000 * (MAX(price) - MIN(PRICE)) / MIN(PRICE) / bin_step
+    ) bins_range,
+    CEIL(
+      10000 * (MAX(price) - MIN(PRICE)) / MIN(PRICE) / bin_step / 69
+    ) num_positions,
+    AVG(liquidity) avg_liquidity,
+    ROUND(SUM(fee_volume), 2) fees,
     ROUND(
-      (MAX(price) - MIN(price)) / MIN(price) * 10000 / bin_step
-    ) price_movement_bins,
-    ROUND(
-      SUM(
-        CASE
-          WHEN volume > 0 THEN 1.0
-          ELSE 0.0
-        END
-      ) / COUNT(),
-      3
-    ) * 100.0 pct_minutes_with_volume,
-    ROUND(MIN(liquidity), 2) min_liquidity,
-    ROUND(MAX(liquidity), 2) max_liquidity,
-    ROUND(
-      SUM(liquidity * minutes_elapsed) / SUM(minutes_elapsed),
+      100 * SUM(fee_volume * minutes_since_last_update) / SUM(liquidity * minutes_since_last_update),
       2
-    ) avg_liquidity,
-    ROUND(SUM(fees) / AVG(liquidity) * 100, 2) total_fee_avg_liquidity,
+    ) time_weighted_fees_tvl,
     ROUND(
-      SUM(fees * minutes_elapsed) / SUM(liquidity * minutes_elapsed) * 1440 * 100,
+      100 * 60 * 24 / SUM(minutes_since_last_update) * SUM(fee_volume * minutes_since_last_update) / SUM(liquidity * minutes_since_last_update),
       2
-    ) fee_liquidity_pct_24h
-  FROM v_dlmm_history
-  WHERE created_at >= strftime('%s', 'now') - 60 * 15
-    AND ROUND(minutes_elapsed) = 1
-  GROUP BY pair_name,
-    pair_address,
+    ) time_weighted_fees_tvl_projected_24h
+  FROM history
+  WHERE update_id > (
+      SELECT MAX(id)
+      from dlmm_pair_history_updates
+    ) - 30
+  GROUP BY pair_address,
+    pair_name,
     bin_step,
     base_fee_percentage
-  ORDER BY SUM(fees * minutes_elapsed) / SUM(liquidity * minutes_elapsed) DESC
 )
 SELECT *
-FROM aggregates_by_pair
-WHERE pct_minutes_with_volume > 50;
+FROM pair_stats
+WHERE pct_minutes_with_volume > 50
+  AND fees > 100
+  AND total_minutes = 30
+ORDER BY time_weighted_fees_tvl_projected_24h DESC;

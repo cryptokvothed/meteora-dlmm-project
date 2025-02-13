@@ -18,25 +18,14 @@ period = meteora_rate["period"]
 @sleep_and_retry
 @limits(calls=calls, period=period)
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=2, max=10))
-def meteora_lp_api(page=1, limit=config.DEFAULT_LIMIT, order_by='desc', skip_size=0, sort_key='volume'):
+def meteora_lp_api():
     """
     Calls the Meteora API and returns the JSON response along with a timezone-aware API return timestamp.
     """
     base_url = config.API_BASE_URL
-    endpoint = "/pair/all_with_pagination"
-    params = {
-        "page": page,
-        "limit": limit,
-        "order_by": order_by,
-        "skip_size": skip_size,
-        "sort_key": sort_key,
-    }
-    
-    response = requests.get(base_url + endpoint, params=params, timeout=10)
+    endpoint = "/pair/all"
+    response = requests.get(base_url + endpoint, timeout=10)
     response.raise_for_status()  # Will trigger retry if status is not 200
     
     data = response.json()
-    api_timestamp = datetime.now(timezone.utc).isoformat()
-    logger.debug("API Response Timestamp: %s", api_timestamp)
-    logger.debug("API Response: %s", json.dumps(data, indent=4))
-    return data, api_timestamp
+    return data
