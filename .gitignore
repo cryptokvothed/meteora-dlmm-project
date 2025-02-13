@@ -2,3 +2,4 @@
 venv/
 api_entries.db
 **/__pycache__/
+**Zone.Identifier
