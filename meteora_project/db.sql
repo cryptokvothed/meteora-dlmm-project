@@ -38,8 +38,6 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
     avg(h.price) average_price,
     min(h.price) min_price,
     max(h.price) max_price,
-    100 * (max_price - current_price) / current_price pct_below_max,
-    pct_below_max < 5 near_max,
     100 * (max_price - min_price) / min_price price_range_pct,
     COALESCE(
       NULLIF(
@@ -54,20 +52,34 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
       1
     ) bins_range,
     ceil(bins_range / 69) num_positions_range,
+    100 * (max_price - current_price) / current_price pct_below_max,
+    ceil(
+      100 * pct_below_max / last(
+        p.bin_step
+        ORDER BY created_at
+      )
+    ) bins_below_max,
+    bins_below_max < 7 near_max,
     stddev_samp(h.price) price_std_dev,
     price_std_dev / average_price price_volatility_ratio,
-    last(
-      h.liquidity
-      ORDER BY created_at
+    round(
+      last(
+        h.liquidity
+        ORDER BY created_at
+      ),
+      2
     ) current_liquidity,
-    min(h.liquidity) min_liquidity,
-    max(h.liquidity) max_liquidity,
-    avg(h.liquidity) avg_liquidity,
-    stddev_samp(h.liquidity) liquidity_std_dev,
-    liquidity_std_dev / avg_liquidity liquidity_volatility_ratio,
-    sum(h.fees) total_fees,
-    100 * total_fees / (avg_liquidity + liquidity_std_dev) fees_tvl_pct,
-    60 * 24 / num_minutes * fees_tvl_pct fees_tvl_24h_pct
+    round(min(h.liquidity), 2) min_liquidity,
+    round(max(h.liquidity), 2) max_liquidity,
+    round(avg(h.liquidity), 2) avg_liquidity,
+    round(stddev_samp(h.liquidity), 2) liquidity_std_dev,
+    round(liquidity_std_dev / avg_liquidity, 2) liquidity_volatility_ratio,
+    round(sum(h.fees), 2) total_fees,
+    round(
+      100 * total_fees / (avg_liquidity + liquidity_std_dev),
+      2
+    ) fees_tvl_pct,
+    round(60 * 24 / num_minutes * fees_tvl_pct, 2) fees_tvl_24h_pct
   FROM pair_history h
     JOIN pairs p ON h.pair_address = p.pair_address
   WHERE NOT p.is_blacklisted
@@ -80,7 +92,5 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
 FROM pair_stats
 WHERE NOT isnan(fees_tvl_pct)
   AND NOT isinf(fees_tvl_pct)
-  AND pct_minutes_with_volume > 75
-  AND total_fees > 100
-  AND current_liquidity > 1000
+  AND avg_liquidity > 1000
 ORDER BY fees_tvl_pct DESC;
