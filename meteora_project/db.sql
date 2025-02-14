@@ -39,7 +39,7 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
     min(h.price) min_price,
     max(h.price) max_price,
     100 * (max_price - current_price) / current_price pct_below_max,
-    pct_below_max < 5 near_ath,
+    pct_below_max < 5 near_max,
     100 * (max_price - min_price) / min_price price_range_pct,
     COALESCE(
       NULLIF(
