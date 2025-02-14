@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 import logging
-import sqlite3
+import duckdb
 import time
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apis.meteora_dlmm import meteora_lp_api
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 def run_job():
     """Fetch API data, insert it into the database, and log progress."""
 
-    conn = sqlite3.connect(config.DB_FILENAME)
+    conn = duckdb.connect(config.DB_FILENAME)
     try:
         # Fetch data from the API
         start_time = time.time()
@@ -29,18 +29,10 @@ def run_job():
             logger.error("No data fetched from API.")
             return
 
-        # Expecting a structure with a "pairs" list and a "total" count.
-        if isinstance(data, dict) and "pairs" in data:
-            entries = data["pairs"]
-            total_entries = data.get("total", len(entries))
-            logger.debug("Total entries reported by API: %s", total_entries)
-        else:
-            entries = data
-
         # Insert the entries into the database.
-        created_at = datetime.now(timezone.utc).timestamp()  # Convert to unix
+        created_at = datetime.now()
         start_time = time.time()
-        insert_meteora_api_entries(conn, entries, created_at)
+        insert_meteora_api_entries(conn, data, created_at)
         end_time = time.time()
         duration = end_time - start_time
         logger.debug("Time to load API data into database: %.2f seconds", duration)
@@ -58,7 +50,7 @@ if __name__ == "__main__":
 
     # Run the job immediately on startup
     run_job()
-    logger.info("Job successfully executed on startup.")
+    logger.debug("Job successfully executed on startup.")
 
     # Create a blocking scheduler
     scheduler = BlockingScheduler()

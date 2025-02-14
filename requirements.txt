@@ -2,3 +2,5 @@ requests
 tenacity
 ratelimit
 apscheduler
+duckdb
+pandas
