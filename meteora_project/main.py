@@ -1,49 +1,57 @@
 # main.py
 
-import json
+from datetime import datetime, timezone
 import logging
+import duckdb
+import time
 from apscheduler.schedulers.blocking import BlockingScheduler
-from meteora_project.apis.meteora_dlmm import meteora_lp_api
-from meteora_project.db import setup_database, insert_api_entry
-from meteora_project import config
+from apis.meteora_dlmm import meteora_lp_api
+from db import insert_meteora_api_entries, setup_database
+import config
 
 # Configure logging (adjust level as needed)
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 def run_job():
     """Fetch API data, insert it into the database, and log progress."""
+
+    conn = duckdb.connect(config.DB_FILENAME)
     try:
-        # Fetch data from the API along with the API return timestamp.
-        data, api_timestamp = meteora_lp_api()
+        # Fetch data from the API
+        start_time = time.time()
+        data = meteora_lp_api()
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug("API call duration: %.2f seconds", duration)
+
         if not data:
             logger.error("No data fetched from API.")
             return
 
-        # Expecting a structure with a "pairs" list and a "total" count.
-        if isinstance(data, dict) and "pairs" in data:
-            entries = data["pairs"]
-            total_entries = data.get("total", len(entries))
-            logger.info("Total entries reported by API: %s", total_entries)
-        else:
-            entries = data
-
-        # Set up the SQLite database.
-        conn = setup_database(config.DB_FILENAME)
-
-        # Insert each entry into the database.
-        for entry in entries:
-            logger.info("Inserting entry: %s", json.dumps(entry, indent=4))
-            insert_api_entry(conn, entry, api_timestamp)
+        # Insert the entries into the database.
+        created_at = datetime.now()
+        start_time = time.time()
+        insert_meteora_api_entries(conn, data, created_at)
+        end_time = time.time()
+        duration = end_time - start_time
+        logger.debug("Time to load API data into database: %.2f seconds", duration)
 
         conn.close()
-        logger.info("Job complete at %s", api_timestamp)
+        logger.debug("Job complete at %s", datetime.now(timezone.utc).isoformat())
 
     except Exception as e:
         # Log the exception stack trace for debugging.
         logger.exception("Exception occurred while running the scheduled job: %s", e)
 
 if __name__ == "__main__":
+    # Set up the SQLite database.
+    setup_database(config.DB_FILENAME)
+
+    # Run the job immediately on startup
+    run_job()
+    logger.debug("Job successfully executed on startup.")
+
     # Create a blocking scheduler
     scheduler = BlockingScheduler()
 

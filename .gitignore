@@ -1,1 +1,6 @@
+.gitignore
 venv/
+*.db
+**/__pycache__/
+**Zone.Identifier
+.vscode
