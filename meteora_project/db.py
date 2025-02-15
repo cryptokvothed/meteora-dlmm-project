@@ -119,17 +119,17 @@ def load_history(conn):
     """
     Loads the historical data into the 'pair_history' table.
     """
-    conn.sql('''
+    conn.execute('''
         INSERT INTO pair_history 
         SELECT 
             a.created_at,
-            a.address pair_address,
+            trim(a.address) pair_address,
             a.current_price price,
             a.liquidity,
             CAST(a.cumulative_fee_volume AS DOUBLE) - p.cumulative_fee_volume fees
         FROM 
             api_entries a
-            JOIN pairs p ON a.address = p.pair_address
+            JOIN pairs p ON trim(a.address) = p.pair_address
     ''')
 
 def update_cumulative_fees(conn, created_at):
@@ -140,11 +140,10 @@ def update_cumulative_fees(conn, created_at):
         UPDATE pairs 
         SET cumulative_fee_volume = (
             SELECT 
-                cumulative_fee_volume
+                CAST(cumulative_fee_volume as DOUBLE)
             FROM 
-                pair_history
+                api_entries
             WHERE 
-                pair_address = pairs.pair_address
-                AND created_at = ?
+                trim(address) = pairs.pair_address
         )
-    ''', [created_at])
+    ''')
