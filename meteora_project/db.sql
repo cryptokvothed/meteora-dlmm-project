@@ -23,7 +23,12 @@ CREATE TABLE IF NOT EXISTS pair_history (
 CREATE INDEX IF NOT EXISTS pair_history_update_id_IDX ON pair_history (created_at);
 CREATE INDEX IF NOT EXISTS pair_history_dlmm_pair_id_IDX ON pair_history (pair_address);
 CREATE INDEX IF NOT EXISTS pair_history_update_id_dlmm_pair_id_IDX ON pair_history(created_at, pair_address);
-CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
+WITH updates AS (
+  SELECT DISTINCT created_at
+  FROM pair_history
+  ORDER BY created_at DESC
+  LIMIT 30
+), pair_stats AS (
   SELECT p.name,
     p.pair_address,
     p.bin_step,
@@ -33,7 +38,7 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
     round(100 * num_minutes_with_volume / num_minutes) pct_minutes_with_volume,
     last(
       h.price
-      ORDER BY created_at
+      ORDER BY h.created_at
     ) current_price,
     avg(h.price) average_price,
     min(h.price) min_price,
@@ -44,7 +49,7 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
         ceil(
           100 * price_range_pct / last(
             p.bin_step
-            ORDER BY created_at
+            ORDER BY h.created_at
           )
         ),
         0
@@ -56,7 +61,7 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
     ceil(
       100 * pct_below_max / last(
         p.bin_step
-        ORDER BY created_at
+        ORDER BY h.created_at
       )
     ) bins_below_max,
     bins_below_max < 7 near_max,
@@ -65,7 +70,7 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
     round(
       last(
         h.liquidity
-        ORDER BY created_at
+        ORDER BY h.created_at
       ),
       2
     ) current_liquidity,
@@ -82,15 +87,12 @@ CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH pair_stats AS (
     round(60 * 24 / num_minutes * fees_tvl_pct, 2) fees_tvl_24h_pct
   FROM pair_history h
     JOIN pairs p ON h.pair_address = p.pair_address
+    join updates l on h.created_at = l.created_at
   WHERE NOT p.is_blacklisted
-    AND created_at >= (
-      SELECT MAX(created_at)
-      FROM pair_history
-    ) - INTERVAL 30 MINUTE
   GROUP BY ALL
 )
 FROM pair_stats
 WHERE NOT isnan(fees_tvl_pct)
   AND NOT isinf(fees_tvl_pct)
   AND avg_liquidity > 1000
-ORDER BY fees_tvl_pct DESC;
+ORDER BY fees_tvl_24h_pct DESC;
