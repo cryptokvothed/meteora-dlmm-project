@@ -15,19 +15,19 @@ CREATE TABLE IF NOT EXISTS pairs (
   mint_x_id INTEGER NOT NULL REFERENCES tokens(id),
   mint_y_id INTEGER NOT NULL REFERENCES tokens(id),
   bin_step INTEGER NOT NULL,
-  base_fee_percentage DOUBLE NOT NULL,
+  base_fee_percentage FLOAT NOT NULL,
   hide BOOLEAN DEFAULT FALSE NOT NULL,
   is_blacklisted BOOLEAN DEFAULT FALSE NOT NULL,
-  cumulative_fee_volume DOUBLE NOT NULL
+  cumulative_fee_volume FLOAT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS pairs_pair_address_IDX ON pairs (pair_address);
 CREATE TABLE IF NOT EXISTS pair_history (
   id INTEGER DEFAULT nextval('pair_history_id_seq') PRIMARY KEY,
   created_at TIMESTAMP NOT NULL,
   pair_id INTEGER NOT NULL REFERENCES pairs(id),
-  price DOUBLE NOT NULL,
-  liquidity DOUBLE NOT NULL,
-  fees DOUBLE
+  price FLOAT NOT NULL,
+  liquidity FLOAT NOT NULL,
+  fees FLOAT
 );
 CREATE INDEX IF NOT EXISTS pair_history_update_id_IDX ON pair_history (created_at);
 CREATE INDEX IF NOT EXISTS pair_history_update_id_dlmm_pair_id_IDX ON pair_history(created_at, pair_id);
