@@ -79,18 +79,18 @@ def load_mints(conn):
     Loads the mint addresses into the 'tokens' table.
     """
     conn.execute('''
-        INSERT INTO tokens 
+        INSERT INTO tokens (mint, symbol)
         SELECT 
             mint_x mint,
-            x symbol, 
+            x symbol 
         FROM api_entries 
         ON CONFLICT DO NOTHING
     ''')
     conn.execute('''
-        INSERT INTO tokens 
+        INSERT INTO tokens (mint, symbol)
         SELECT 
             mint_y mint,
-            x symbol, 
+            x symbol 
         FROM api_entries 
         ON CONFLICT DO NOTHING
     ''')
@@ -100,18 +100,31 @@ def load_pairs(conn):
     Loads the pairs into the 'pairs' table.
     """
     conn.execute('''
-        INSERT INTO pairs 
-        SELECT 
-            address pair_address,
+        INSERT INTO pairs (
+            pair_address,
             name,
-            mint_x,
-            mint_y,
+            mint_x_id,
+            mint_y_id,
             bin_step,
             base_fee_percentage,
             hide,
             is_blacklisted,
             cumulative_fee_volume
-        FROM api_entries
+        )
+        SELECT 
+            a.address,
+            a.name,
+            x.id,
+            y.id,
+            a.bin_step,
+            a.base_fee_percentage,
+            a.hide,
+            a.is_blacklisted,
+            a.cumulative_fee_volume
+        FROM 
+            api_entries a
+            JOIN tokens x ON a.mint_x = x.mint
+            JOIN tokens y ON a.mint_y = y.mint
         ON CONFLICT DO NOTHING
     ''')
 
@@ -120,16 +133,22 @@ def load_history(conn):
     Loads the historical data into the 'pair_history' table.
     """
     conn.execute('''
-        INSERT INTO pair_history 
+        INSERT INTO pair_history (
+            created_at,
+            pair_id,
+            price,
+            liquidity,
+            fees
+        )
         SELECT 
             a.created_at,
-            trim(a.address) pair_address,
+            p.id pair_id,
             a.current_price price,
             a.liquidity,
             CAST(a.cumulative_fee_volume AS DOUBLE) - p.cumulative_fee_volume fees
         FROM 
             api_entries a
-            JOIN pairs p ON trim(a.address) = p.pair_address
+            JOIN pairs p ON a.address = p.pair_address
     ''')
 
 def update_cumulative_fees(conn, created_at):
@@ -144,6 +163,6 @@ def update_cumulative_fees(conn, created_at):
             FROM 
                 api_entries
             WHERE 
-                trim(address) = pairs.pair_address
+                address = pairs.pair_address
         )
     ''')

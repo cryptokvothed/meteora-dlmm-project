@@ -1,29 +1,37 @@
+-- Create sequences for auto-increment IDs
+CREATE SEQUENCE tokens_id_seq;
+CREATE SEQUENCE pairs_id_seq;
+CREATE SEQUENCE pair_history_id_seq;
 CREATE TABLE IF NOT EXISTS tokens (
-  mint VARCHAR(44) NOT NULL PRIMARY KEY,
+  id INTEGER DEFAULT nextval('tokens_id_seq') PRIMARY KEY,
+  mint VARCHAR(44) NOT NULL UNIQUE,
   symbol VARCHAR
 );
+CREATE INDEX IF NOT EXISTS tokens_mint_IDX ON tokens (mint);
 CREATE TABLE IF NOT EXISTS pairs (
-  pair_address VARCHAR(44) NOT NULL PRIMARY KEY,
+  id INTEGER DEFAULT nextval('pairs_id_seq') PRIMARY KEY,
+  pair_address VARCHAR(44) NOT NULL UNIQUE,
   name VARCHAR NOT NULL,
-  mint_x VARCHAR(44) NOT NULL REFERENCES tokens(mint),
-  mint_y VARCHAR(44) NOT NULL REFERENCES tokens(mint),
+  mint_x_id INTEGER NOT NULL REFERENCES tokens(id),
+  mint_y_id INTEGER NOT NULL REFERENCES tokens(id),
   bin_step INTEGER NOT NULL,
   base_fee_percentage DOUBLE NOT NULL,
   hide BOOLEAN DEFAULT FALSE NOT NULL,
   is_blacklisted BOOLEAN DEFAULT FALSE NOT NULL,
   cumulative_fee_volume DOUBLE NOT NULL
 );
+CREATE INDEX IF NOT EXISTS pairs_pair_address_IDX ON pairs (pair_address);
 CREATE TABLE IF NOT EXISTS pair_history (
+  id INTEGER DEFAULT nextval('pair_history_id_seq') PRIMARY KEY,
   created_at TIMESTAMP NOT NULL,
-  pair_address VARCHAR(44) NOT NULL REFERENCES pairs(pair_address),
+  pair_id INTEGER NOT NULL REFERENCES pairs(id),
   price DOUBLE NOT NULL,
   liquidity DOUBLE NOT NULL,
   fees DOUBLE
 );
 CREATE INDEX IF NOT EXISTS pair_history_update_id_IDX ON pair_history (created_at);
-CREATE INDEX IF NOT EXISTS pair_history_dlmm_pair_id_IDX ON pair_history (pair_address);
-CREATE INDEX IF NOT EXISTS pair_history_update_id_dlmm_pair_id_IDX ON pair_history(created_at, pair_address);
-WITH updates AS (
+CREATE INDEX IF NOT EXISTS pair_history_update_id_dlmm_pair_id_IDX ON pair_history(created_at, pair_id);
+CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH updates AS (
   SELECT DISTINCT created_at
   FROM pair_history
   ORDER BY created_at DESC
@@ -86,7 +94,7 @@ WITH updates AS (
     ) fees_tvl_pct,
     round(60 * 24 / num_minutes * fees_tvl_pct, 2) fees_tvl_24h_pct
   FROM pair_history h
-    JOIN pairs p ON h.pair_address = p.pair_address
+    JOIN pairs p ON h.pair_id = p.id
     join updates l on h.created_at = l.created_at
   WHERE NOT p.is_blacklisted
   GROUP BY ALL
