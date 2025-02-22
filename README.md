@@ -74,7 +74,7 @@ meteora_project/
 To start collecting data, simply run:
 
 ```bash
-python meteora_project/main.py
+python load_database.py
 ```
 
 The application will:

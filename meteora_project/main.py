@@ -5,9 +5,9 @@ import logging
 import duckdb
 import time
 from apscheduler.schedulers.blocking import BlockingScheduler
-from apis.meteora_dlmm import meteora_lp_api
-from db import insert_meteora_api_entries, setup_database
-import config
+from meteora_project.apis.meteora_dlmm import meteora_lp_api
+from meteora_project.db import insert_meteora_api_entries, setup_database
+from meteora_project import config
 
 # Configure logging (adjust level as needed)
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -44,7 +44,7 @@ def run_job():
         # Log the exception stack trace for debugging.
         logger.exception("Exception occurred while running the scheduled job: %s", e)
 
-if __name__ == "__main__":
+def load_database():
     # Set up the SQLite database.
     setup_database(config.DB_FILENAME)
 
@@ -63,3 +63,6 @@ if __name__ == "__main__":
         scheduler.start()
     except KeyboardInterrupt:
         logger.info("Scheduler stopped by user.")
+
+if __name__ == "__main__":
+    load_database()

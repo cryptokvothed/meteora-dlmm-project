@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import logging
 from tenacity import retry, stop_after_attempt, wait_exponential
 from ratelimit import limits, sleep_and_retry
-import config
+from meteora_project import config
 
 logger = logging.getLogger(__name__)
 
