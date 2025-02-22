@@ -4,7 +4,7 @@ import os
 import duckdb
 import pandas as pd
 import logging
-import config
+from meteora_project import config
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,6 @@
 -- Create sequences for auto-increment IDs
-CREATE SEQUENCE tokens_id_seq;
-CREATE SEQUENCE pairs_id_seq;
-CREATE SEQUENCE pair_history_id_seq;
+CREATE SEQUENCE IF NOT EXISTS tokens_id_seq;
+CREATE SEQUENCE IF NOT EXISTS pairs_id_seq;
 CREATE TABLE IF NOT EXISTS tokens (
   id INTEGER DEFAULT nextval('tokens_id_seq') PRIMARY KEY,
   mint VARCHAR(44) NOT NULL UNIQUE,
@@ -22,7 +21,6 @@ CREATE TABLE IF NOT EXISTS pairs (
 );
 CREATE INDEX IF NOT EXISTS pairs_pair_address_IDX ON pairs (pair_address);
 CREATE TABLE IF NOT EXISTS pair_history (
-  id INTEGER DEFAULT nextval('pair_history_id_seq') PRIMARY KEY,
   created_at TIMESTAMP NOT NULL,
   pair_id INTEGER NOT NULL REFERENCES pairs(id),
   price FLOAT NOT NULL,
