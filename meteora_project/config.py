@@ -8,6 +8,9 @@ API_BASE_URL = "https://dlmm-api.meteora.ag"
 # Logging Configuration
 LOG_LEVEL = logging.INFO  # Set to logging.DEBUG for more verbose output
 
+# Default Limit
+DEFAULT_LIMIT = 100
+
 # Database configuration
 DB_FILENAME = "api_entries.db"
 
@@ -15,8 +18,8 @@ DB_FILENAME = "api_entries.db"
 # Each API can have its own "calls" (number of allowed calls) and "period" (in seconds)
 RATE_LIMITS = {
     "meteora_dlmm": {
-        "calls": 30,  # 30 calls
-        "period": 60  # per 60 seconds (i.e., 30 calls per minute)
+        "calls": 3,  # 3 calls
+        "period": 1  # per 1 second (i.e., 180 calls per minute)
     },
     "another_api": {
         "calls": 10,  # 10 calls

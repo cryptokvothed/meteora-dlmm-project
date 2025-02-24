@@ -5,9 +5,9 @@ import logging
 import duckdb
 import time
 from apscheduler.schedulers.blocking import BlockingScheduler
-from apis.meteora_dlmm import meteora_lp_api
-from db import insert_meteora_api_entries, setup_database
-import config
+from meteora_project.apis.meteora_dlmm import meteora_lp_api
+from meteora_project.db import insert_meteora_api_entries, setup_database
+from meteora_project import config
 
 # Configure logging (adjust level as needed)
 logging.basicConfig(level=config.LOG_LEVEL)
