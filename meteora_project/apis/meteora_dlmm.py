@@ -8,6 +8,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from ratelimit import limits, sleep_and_retry
 from meteora_project import config
 
+logging.basicConfig(level=config.LOG_LEVEL)
+logger = logging.getLogger(__name__)
+
 # Retrieve the specific rate limit for the Meteora DLMM API
 meteora_rate = config.RATE_LIMITS.get("meteora_dlmm", {"calls": 3, "period": 1})
 calls = meteora_rate["calls"]
@@ -35,20 +38,26 @@ async def fetch_paginated_data(limit=config.DEFAULT_LIMIT, sort_key="volume30m")
 
     async with aiohttp.ClientSession() as session:
         while True:
-            # Fetch data for the current page
-            data = await fetch_page_data(session, page, limit, sort_key)
-            
-            # Collect the pairs from the response
-            pairs = data.get('pairs', [])
-            results.extend(pairs)
-            
+            # Create a list of fetch requests
+            fetches = [fetch_page_data(session, n+page, limit, sort_key) for n in range(calls)]
+
+            # Gather the responses from the fetch requests
+            responses = await asyncio.gather(*fetches)
+            logger.debug(f"Received {(page+calls)*limit} pairs.")
+
+            # Loop through the responses and append the data to the results
+            for data in responses:            
+                # Collect the pairs from the response
+                pairs = data.get('pairs', [])
+                results.extend(pairs)
+                
             # Check for the stopping condition: if any pair has volume.min_30 == 0
             if any(pair['fees']['min_30'] == 0 for pair in pairs):
-                print("Found pair with zero volume in the last 30 minutes. Stopping.")
+                logger.debug("Found pair with zero volume in the last 30 minutes. Stopping.")
                 break
             
             # Update the page number for pagination
-            page += 1
+            page += calls
 
             # Sleep to respect the rate limit if necessary
             await asyncio.sleep(period)
@@ -67,5 +76,5 @@ async def meteora_lp_api(limit=config.DEFAULT_LIMIT, sort_key="volume30m"):
     with open('aggregated_data.json', 'w') as json_file:
         json.dump(results, json_file, indent=4)
 
-    print("Data aggregation complete. Results saved to 'aggregated_data.json'.")
+    logger.debug("Data aggregation complete. Results saved to 'aggregated_data.json'.")
     return results
