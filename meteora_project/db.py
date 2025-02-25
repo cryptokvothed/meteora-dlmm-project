@@ -62,6 +62,8 @@ def load_api_entries(conn, entries, created_at):
     """
     # Convert the entries to a DataFrame
     api_entries_df = pd.DataFrame(entries)
+    api_entries_df['cumulative_fee_volume'] = api_entries_df['cumulative_fee_volume'].astype(float)
+    api_entries_df = api_entries_df.sort_values(by='cumulative_fee_volume').drop_duplicates(subset='address', keep='first')
 
     # Add the 'created_at' column (which is a datetime type)
     api_entries_df['created_at'] = created_at
@@ -120,7 +122,7 @@ def load_pairs(conn):
             a.base_fee_percentage,
             a.hide,
             a.is_blacklisted,
-            coalesce(cast(a.cumulative_fee_volume AS DOUBLE), 0)
+            a.cumulative_fee_volume
         FROM 
             api_entries a
             JOIN tokens x ON a.mint_x = x.mint
@@ -145,7 +147,7 @@ def load_history(conn):
             p.id pair_id,
             a.current_price price,
             a.liquidity,
-            coalesce(cast(a.cumulative_fee_volume AS DOUBLE), 0) - p.cumulative_fee_volume fees
+            coalesce(a.cumulative_fee_volume, p.cumulative_fee_volume) - p.cumulative_fee_volume fees
         FROM 
             api_entries a
             JOIN pairs p ON a.address = p.pair_address
@@ -159,10 +161,10 @@ def update_cumulative_fees(conn, created_at):
         UPDATE pairs 
         SET cumulative_fee_volume = coalesce((
             SELECT 
-                first(cast(cumulative_fee_volume AS DOUBLE) ORDER BY cumulative_fee_volume)
+                cumulative_fee_volume
             FROM 
                 api_entries
             WHERE 
                 address = pairs.pair_address
-        ), 0)
+        ), pairs.cumulative_fee_volume)
     ''')

@@ -60,7 +60,7 @@ async def fetch_paginated_data(limit=config.DEFAULT_LIMIT, sort_key="volume30m")
             page += calls
 
             # Sleep to respect the rate limit if necessary
-            await asyncio.sleep(period)
+            # await asyncio.sleep(period)
 
     return results
 
@@ -72,5 +72,4 @@ async def meteora_lp_api(limit=config.DEFAULT_LIMIT, sort_key="volume30m"):
     # Start the data aggregation process using pagination
     results = await fetch_paginated_data(limit=limit, sort_key=sort_key)
 
-    logger.debug("Data aggregation complete. Results saved to 'aggregated_data.json'.")
     return results
