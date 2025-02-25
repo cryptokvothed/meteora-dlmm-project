@@ -72,9 +72,5 @@ async def meteora_lp_api(limit=config.DEFAULT_LIMIT, sort_key="volume30m"):
     # Start the data aggregation process using pagination
     results = await fetch_paginated_data(limit=limit, sort_key=sort_key)
 
-    # Save the aggregated results to a JSON file
-    with open('aggregated_data.json', 'w') as json_file:
-        json.dump(results, json_file, indent=4)
-
     logger.debug("Data aggregation complete. Results saved to 'aggregated_data.json'.")
     return results
