@@ -120,7 +120,7 @@ def load_pairs(conn):
             a.base_fee_percentage,
             a.hide,
             a.is_blacklisted,
-            a.cumulative_fee_volume
+            coalesce(cast(a.cumulative_fee_volume AS DOUBLE), 0)
         FROM 
             api_entries a
             JOIN tokens x ON a.mint_x = x.mint
@@ -145,7 +145,7 @@ def load_history(conn):
             p.id pair_id,
             a.current_price price,
             a.liquidity,
-            CAST(a.cumulative_fee_volume AS DOUBLE) - p.cumulative_fee_volume fees
+            coalesce(cast(a.cumulative_fee_volume AS DOUBLE), 0) - p.cumulative_fee_volume fees
         FROM 
             api_entries a
             JOIN pairs p ON a.address = p.pair_address
@@ -157,12 +157,12 @@ def update_cumulative_fees(conn, created_at):
     """
     conn.execute('''
         UPDATE pairs 
-        SET cumulative_fee_volume = (
+        SET cumulative_fee_volume = coalesce((
             SELECT 
-                CAST(cumulative_fee_volume as DOUBLE)
+                cast(cumulative_fee_volume AS DOUBLE)
             FROM 
                 api_entries
             WHERE 
                 address = pairs.pair_address
-        )
+        ), 0)
     ''')
