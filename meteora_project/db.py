@@ -159,7 +159,7 @@ def update_cumulative_fees(conn, created_at):
         UPDATE pairs 
         SET cumulative_fee_volume = coalesce((
             SELECT 
-                cast(cumulative_fee_volume AS DOUBLE)
+                first(cast(cumulative_fee_volume AS DOUBLE) ORDER BY cumulative_fee_volume)
             FROM 
                 api_entries
             WHERE 
