@@ -4,3 +4,5 @@ ratelimit
 apscheduler
 duckdb
 pandas
+aiohttp
+dotenv

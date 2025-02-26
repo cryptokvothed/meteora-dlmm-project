@@ -1,7 +1,11 @@
 .gitignore
+.env
 venv/
 *.db
-*.db.wal
+*.duckdb
+*.wal
 **/__pycache__/
 **Zone.Identifier
 .vscode
+duckdb_testing.py
+**.tmp/

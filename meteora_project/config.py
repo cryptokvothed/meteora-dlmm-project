@@ -1,26 +1,25 @@
 import logging
+import os
+from dotenv import load_dotenv
 
-# config.py
+load_dotenv()
 
 # API Configuration
-API_BASE_URL = "https://app.meteora.ag/clmm-api"
+API_BASE_URL = os.getenv("API_BASE_URL", "https://dlmm-api.meteora.ag")
 
 # Logging Configuration
-LOG_LEVEL = logging.INFO  # Set to logging.DEBUG for more verbose output
+LOG_LEVEL = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)
+
+# Default Limit
+DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", 100))
 
 # Database configuration
-DB_FILENAME = "api_entries.db"
+DB_FILENAME = os.getenv("DB_FILENAME", "meteora_dlmm_time_series.duckdb")
 
 # Rate Limiting Configuration
-# Each API can have its own "calls" (number of allowed calls) and "period" (in seconds)
 RATE_LIMITS = {
     "meteora_dlmm": {
-        "calls": 30,  # 30 calls
-        "period": 60  # per 60 seconds (i.e., 30 calls per minute)
-    },
-    "another_api": {
-        "calls": 10,  # 10 calls
-        "period": 60  # per 60 seconds (i.e., 10 calls per minute)
-    },
-    # Add additional APIs here with their unique rate limits
+        "calls": int(os.getenv("RATE_LIMIT_CALLS", 3)),
+        "period": int(os.getenv("RATE_LIMIT_PERIOD", 1))
+    }
 }

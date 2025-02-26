@@ -58,16 +58,16 @@ meteora_project/
    pip install -r requirements.txt
    ```
 
-   Your `requirements.txt` should include:
+4. **Configuration (optional):**
 
-   ```
-   requests
-   tenacity
-   ratelimit
-   apscheduler
-   duckdb
-   pandas
-   ```
+   Rename the `.env.sample` file to `.env`, and update accordingly.
+
+   Environment variables:
+   - **API_BASE_URL:** The base URL for the Meteora API
+   - **LOG_LEVEL:** The log level, set to `DEBUG` for more verbose logging
+   - **DEFAULT_LIMIT:** The number of pairs to fetch per page from the API
+   - **DB_FILENAME:** The filename for your DuckDB database
+   - **RATE_LIMIT_CALLS** and **RATE_LIMIT_PERIOD:** For rate limiting (e.g., 30 calls per minute)
 
 ## Usage
 
@@ -77,20 +77,11 @@ To start collecting data, simply run:
 python load_database.py
 ```
 
-The application will:
-- Poll the Meteora API every minute.
-- Log API responses and errors.
-- Insert the data into a DuckDB database (default file: `api_entries.db`).
+The script will poll the Meteora API every minute.  It will only fetch pairs 
+that have had volume within the last 30 minutes, and load the data into a 
+DuckDB database (default file: `meteora_dlmm_time_series.duckdb`).
 
 Press `Ctrl+C` to stop the scheduler gracefully.
-
-## Configuration
-
-Edit `meteora_project/config.py` to adjust settings such as:
-- **API_BASE_URL:** The base URL for the Meteora API.
-- **LOG_LEVEL:** The log level.  Set to `logging.DEBUG` for more verbose logging.
-- **DB_FILENAME:** The filename for your DuckDB database.
-- **CALLS** and **PERIOD:** For rate limiting (e.g., 30 calls per minute).
 
 ## License
 
