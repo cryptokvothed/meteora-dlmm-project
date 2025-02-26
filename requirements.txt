@@ -5,3 +5,4 @@ apscheduler
 duckdb
 pandas
 aiohttp
+dotenv

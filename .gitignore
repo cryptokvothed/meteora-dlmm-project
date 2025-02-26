@@ -1,7 +1,9 @@
 .gitignore
+.env
 venv/
 *.db
-*.db.wal
+*.duckdb
+*.wal
 **/__pycache__/
 **Zone.Identifier
 .vscode
