@@ -92,7 +92,7 @@ def load_mints(conn):
         INSERT INTO tokens (mint, symbol)
         SELECT 
             mint_y mint,
-            x symbol 
+            y symbol 
         FROM api_entries 
         ON CONFLICT DO NOTHING
     ''')
@@ -122,7 +122,7 @@ def load_pairs(conn):
             a.base_fee_percentage,
             a.hide,
             a.is_blacklisted,
-            a.cumulative_fee_volume
+            cast(a.cumulative_fee_volume as FLOAT)
         FROM 
             api_entries a
             JOIN tokens x ON a.mint_x = x.mint
@@ -147,7 +147,7 @@ def load_history(conn):
             p.id pair_id,
             a.current_price price,
             a.liquidity,
-            coalesce(a.cumulative_fee_volume, p.cumulative_fee_volume) - p.cumulative_fee_volume fees
+            cast(a.cumulative_fee_volume as FLOAT) - p.cumulative_fee_volume fees
         FROM 
             api_entries a
             JOIN pairs p ON a.address = p.pair_address
@@ -161,7 +161,7 @@ def update_cumulative_fees(conn, created_at):
         UPDATE pairs 
         SET cumulative_fee_volume = coalesce((
             SELECT 
-                cumulative_fee_volume
+                cast(cumulative_fee_volume as FLOAT)
             FROM 
                 api_entries
             WHERE 
