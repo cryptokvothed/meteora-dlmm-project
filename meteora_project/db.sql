@@ -29,76 +29,138 @@ CREATE TABLE IF NOT EXISTS pair_history (
 );
 CREATE INDEX IF NOT EXISTS pair_history_update_id_IDX ON pair_history (created_at);
 CREATE INDEX IF NOT EXISTS pair_history_update_id_dlmm_pair_id_IDX ON pair_history(created_at, pair_id);
-CREATE VIEW IF NOT EXISTS v_pair_stats AS WITH updates AS (
+CREATE VIEW IF NOT EXISTS v_pair_history AS WITH updates AS (
   SELECT DISTINCT created_at
   FROM pair_history
   ORDER BY created_at DESC
-  LIMIT 30
-), pair_stats AS (
-  SELECT p.name,
+  LIMIT 60
+), cumulative_stats AS (
+  SELECT h.created_at,
+    p.name,
     p.pair_address,
     p.bin_step,
     p.base_fee_percentage,
-    count(*) num_minutes,
-    count(*) FILTER (fees > 0) num_minutes_with_volume,
-    round(100 * num_minutes_with_volume / num_minutes) pct_minutes_with_volume,
-    last(
-      h.price
-      ORDER BY h.created_at
-    ) current_price,
-    avg(h.price) average_price,
-    min(h.price) min_price,
-    max(h.price) max_price,
-    100 * (max_price - min_price) / min_price price_range_pct,
-    COALESCE(
-      NULLIF(
-        ceil(
-          100 * price_range_pct / last(
-            p.bin_step
-            ORDER BY h.created_at
-          )
-        ),
-        0
-      ),
-      1
-    ) bins_range,
-    ceil(bins_range / 69) num_positions_range,
-    100 * (max_price - current_price) / current_price pct_below_max,
-    ceil(
-      100 * pct_below_max / last(
-        p.bin_step
-        ORDER BY h.created_at
-      )
-    ) bins_below_max,
-    bins_below_max < 7 near_max,
-    stddev_samp(h.price) price_std_dev,
-    price_std_dev / average_price price_volatility_ratio,
+    h.price,
+    h.liquidity,
+    h.fees,
+    count(*) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) num_minutes,
+    avg(h.price) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) avg_price,
+    sum(h.fees) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) cumulative_fees,
+    avg(h.liquidity) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) avg_liquidity,
     round(
-      last(
-        h.liquidity
-        ORDER BY h.created_at
+      stddev_samp(h.liquidity) OVER (
+        PARTITION BY p.id
+        ORDER BY created_at
       ),
       2
-    ) current_liquidity,
-    round(min(h.liquidity), 2) min_liquidity,
-    round(max(h.liquidity), 2) max_liquidity,
-    round(avg(h.liquidity), 2) avg_liquidity,
-    round(stddev_samp(h.liquidity), 2) liquidity_std_dev,
+    ) liquidity_std_dev,
     round(liquidity_std_dev / avg_liquidity, 2) liquidity_volatility_ratio,
-    round(sum(h.fees), 2) total_fees,
+    CASE
+      WHEN avg_liquidity = 0 THEN 0
+      ELSE 100 * cumulative_fees / (avg_liquidity + liquidity_std_dev)
+    END pct_geek_fees_liquidity,
     round(
-      100 * total_fees / (avg_liquidity + liquidity_std_dev),
+      60 * 24 * pct_geek_fees_liquidity / num_minutes,
       2
-    ) fees_tvl_pct,
-    round(60 * 24 / num_minutes * fees_tvl_pct, 2) fees_tvl_24h_pct
+    ) pct_geek_fees_liquidity_24h,
+    count(*) FILTER (fees > 0) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) num_minutes_with_volume,
+    round(100 * num_minutes_with_volume / num_minutes) pct_minutes_with_volume,
+    coalesce(
+      lag(h.price) OVER (
+        PARTITION BY p.id
+        ORDER BY created_at
+      ) < h.price,
+      false
+    ) tick_up,
+    coalesce(
+      lag(h.price) OVER (
+        PARTITION BY p.id
+        ORDER BY created_at
+      ) > h.price,
+      false
+    ) tick_down,
+    min(h.price) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) min_price,
+    max(h.price) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) max_price,
+    round(100 * (max_price - min_price) / min_price, 2) pct_price_range,
+    ceil(100 * pct_price_range / p.bin_step) bins_range,
+    ceil(bins_range / 69) num_positions_range,
+    100 * (max_price - h.price) / h.price pct_below_max,
+    ceil(100 * pct_below_max / p.bin_step) bins_below_max,
+    bins_below_max <= 7 near_max,
+    stddev_samp(h.price) OVER (
+      PARTITION BY p.id
+      ORDER BY created_at
+    ) std_dev_price,
+    std_dev_price / avg_price price_volatility_ratio
   FROM pair_history h
     JOIN pairs p ON h.pair_id = p.id
-    join updates l on h.created_at = l.created_at
   WHERE NOT p.is_blacklisted
-  GROUP BY ALL
+    AND h.created_at IN (
+      SELECT created_at
+      from updates
+    )
 )
-FROM pair_stats
-WHERE NOT isnan(fees_tvl_pct)
-  AND NOT isinf(fees_tvl_pct)
-  AND avg_liquidity > 1000
-ORDER BY fees_tvl_24h_pct DESC;
+SELECT created_at dttm,
+  name,
+  pair_address,
+  bin_step,
+  base_fee_percentage,
+  price,
+  liquidity,
+  fees,
+  num_minutes,
+  avg_price,
+  cumulative_fees,
+  avg_liquidity,
+  liquidity_std_dev,
+  liquidity_volatility_ratio,
+  pct_geek_fees_liquidity,
+  pct_geek_fees_liquidity_24h,
+  stddev_samp(pct_geek_fees_liquidity_24h) OVER (
+    PARTITION BY pair_address
+    ORDER BY created_at
+  ) std_dev_pct_geek_fees_liquidity_24h,
+  std_dev_pct_geek_fees_liquidity_24h / pct_geek_fees_liquidity_24h pct_geek_fees_liquidity_24h_volatility_ratio,
+  num_minutes_with_volume,
+  pct_minutes_with_volume,
+  sum(tick_up) OVER (
+    PARTITION BY pair_address
+    ORDER BY created_at
+  ) num_tick_up,
+  sum(tick_down) OVER (
+    PARTITION BY pair_address
+    ORDER BY created_at
+  ) num_tick_down,
+  num_tick_up / (num_tick_up + num_tick_down) pct_tick_up,
+  min_price,
+  max_price,
+  pct_price_range,
+  bins_range,
+  num_positions_range,
+  pct_below_max,
+  bins_below_max,
+  near_max,
+  std_dev_price,
+  price_volatility_ratio
+FROM cumulative_stats;
