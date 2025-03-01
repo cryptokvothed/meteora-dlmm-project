@@ -71,7 +71,8 @@ meteora_project/
 
 ## Usage
 
-To start collecting data, simply run:
+### Load Database
+To start collecting data, run:
 
 ```bash
 python load_database.py
@@ -82,6 +83,15 @@ that have had volume within the last 30 minutes, and load the data into a
 DuckDB database (default file: `meteora_dlmm_time_series.duckdb`).
 
 Press `Ctrl+C` to stop the scheduler gracefully.
+
+### Launch Web UI
+The web UI is a [Streamlit](https://streamlit.io/) app.  To start it run:
+
+```
+streamlit run app.py --server.headless true
+```
+
+The database will have to have collected at least 5 minutes worth of data in order for the web UI to display data.
 
 ## License
 

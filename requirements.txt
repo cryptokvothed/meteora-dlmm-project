@@ -6,3 +6,5 @@ duckdb
 pandas
 aiohttp
 dotenv
+streamlit
+streamlit-aggrid
