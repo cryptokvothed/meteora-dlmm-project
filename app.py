@@ -8,6 +8,18 @@ from tenacity import retry, wait_exponential
 from st_aggrid import AgGrid, GridUpdateMode
 import altair as alt
 
+TIMEFRAMES = [5, 15, 30, 60, 120, 360, 720, 1440]
+TIMEFRAME_LABELS = {
+  5: "5 minutes", 
+  15: "15 minutes", 
+  30: "30 minutes", 
+  60: "1 hour",
+  120: "2 hours",
+  360: "6 hours",
+  720: "12 hours",
+  1440: "24 hours",
+}
+
 # Setup so the table is displayed in full width
 st.set_page_config(layout="wide")
 st.title("DLMM Opportunities")
@@ -439,17 +451,11 @@ def display_pair_detail_chart(pair_details):
     st.altair_chart(combined_chart, use_container_width=True)
 
 def display_num_minutes_selectbox(update_count):
-  options=[x for x in [5, 15, 30, 60] if x <= update_count]
-  options_labels = {
-    5: "5 minutes", 
-    15: "15 minutes", 
-    30: "30 minutes", 
-    60: "1 hour",
-  }
+  options = [x for x in TIMEFRAMES if x <= update_count]
   left_column, _ = st.columns([1, 4])
   index = index[len(options)-1] if len(options) < 4 else 2
   with left_column:
-    num_minutes = st.selectbox("Analysis Timeframe", options=options, format_func=lambda x: options_labels[x], index=index)
+    num_minutes = st.selectbox("Analysis Timeframe", options=options, format_func=lambda x: TIMEFRAME_LABELS[x], index=index)
     return num_minutes
   
 def get_selected_pair_address(selected_row):
@@ -463,7 +469,7 @@ def get_selected_pair_address(selected_row):
 def refresh_data():
   st.cache_data.clear()
   get_update_count()
-  for num_minutes in [5, 15, 30, 60]:
+  for num_minutes in TIMEFRAMES:
     get_summary_data(num_minutes)
   st.rerun()
 
