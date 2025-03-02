@@ -81,8 +81,9 @@ def display_num_minutes_selectbox(update_count):
     60: "1 hour",
   }
   left_column, _ = st.columns([1, 4])
+  index = index[len(options)-1] if len(options) < 4 else 2
   with left_column:
-    num_minutes = st.selectbox("Analysis Timeframe", options=options, format_func=lambda x: options_labels[x], index=0)
+    num_minutes = st.selectbox("Analysis Timeframe", options=options, format_func=lambda x: options_labels[x], index=index)
     return num_minutes
   
 def get_selected_pair_address(selected_row):
