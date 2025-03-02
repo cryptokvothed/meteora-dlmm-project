@@ -551,7 +551,7 @@ else:
             "maxWidth": 100,
             "field": "base_fee_percentage", 
             "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
-            "precision": 0,
+            "precision": 2,
             "filterParams": {
               "defaultOption": "greaterThanOrEqual",
               "buttons": ["apply", "reset"],
