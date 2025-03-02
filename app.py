@@ -635,6 +635,6 @@ else:
   minutes_ago = int(time_diff.total_seconds() // 60)
 
 st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
-if (minutes_ago > 0):
+if (minutes_ago >= 5):
   if st.button("Refresh data"):
     refresh_data()
