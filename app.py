@@ -6,6 +6,7 @@ from meteora_project import config
 from ratelimit import sleep_and_retry
 from tenacity import retry, wait_exponential
 from st_aggrid import AgGrid, GridUpdateMode
+import altair as alt
 
 # Setup so the table is displayed in full width
 st.set_page_config(layout="wide")
@@ -41,6 +42,36 @@ def get_summary_data(num_minutes):
   conn.close()
   return summary_data
 
+@sleep_and_retry
+@retry(wait=wait_exponential(multiplier=1.1, min=0.1, max=100))
+@st.cache_data(ttl=60, show_spinner="Fetching pair details...")
+def get_pair_details(pair_address, num_minutes):
+  conn = duckdb.connect(config.DB_FILENAME, read_only=True)
+  query = f"SELECT * FROM v_pair_history WHERE pair_address='{pair_address}' and num_minutes<={num_minutes}"
+  pair_details = conn.execute(query).fetchdf()
+  conn.close()
+  return pair_details
+
+def display_pair_detail_chart(pair_details):
+  line_chart = alt.Chart(pair_details).mark_line().encode(
+    x=alt.X('dttm:T', title='Time'),
+    y=alt.Y('pct_geek_fees_liquidity_24h:Q', title='Cumulative Geek 24h Fee / TVL')
+  )
+
+  bar_chart = alt.Chart(pair_details).mark_bar().encode(
+    x=alt.X('dttm:T', title='Time'),
+    y=alt.Y('fees:Q', title='Fees')
+  )
+
+  combined_chart = alt.layer(line_chart, bar_chart).resolve_scale(
+    y='independent'
+  ).properties(
+    width='container',
+    height=400
+  )
+
+  st.altair_chart(combined_chart, use_container_width=True)
+
 def display_num_minutes_selectbox(update_count):
   options=[x for x in [5, 15, 30, 60] if x <= update_count]
   options_labels = {
@@ -74,12 +105,12 @@ else:
     "filterModel": {
       "liquidity": {
         "filterType": "number",
-        "type": "greaterThan",
+        "type": "greaterThanOrEqual",
         "filter": 1000,
       },
       "pct_geek_fees_liquidity_24h": {
         "filterType": "number",
-        "type": "greaterThan",
+        "type": "greaterThanOrEqual",
         "filter": 20,
       }
     },
@@ -135,7 +166,7 @@ else:
             "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
             "precision": 0,
             "filterParams": {
-              "defaultOption": "greaterThan",
+              "defaultOption": "greaterThanOrEqual",
               "buttons": ["apply", "reset"],
               "closeOnApply": True,
             }
@@ -146,7 +177,7 @@ else:
             "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
             "precision": 0,
             "filterParams": {
-              "defaultOption": "greaterThan",
+              "defaultOption": "greaterThanOrEqual",
               "buttons": ["apply", "reset"],
               "closeOnApply": True,
             }
@@ -169,7 +200,7 @@ else:
             "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
             "precision": 2,
             "filterParams": {
-              "defaultOption": "greaterThan",
+              "defaultOption": "greaterThanOrEqual",
               "maxNumConditions": 1,
               "buttons": ["apply", "reset"],
               "closeOnApply": True,
@@ -184,7 +215,9 @@ else:
       st.write("Select a row to view details")
     else:
       name = data[data["pair_address"] == pair_address]["name"].iloc[0]
-      st.write(f"{name} detail goes here")
+      st.write(name)
+      detail_df = get_pair_details(pair_address, num_minutes)
+      display_pair_detail_chart(detail_df)
 
   # Show last update time
   last_update = data['dttm'].max().strftime("%Y-%m-%d %I:%M:%S %p")
