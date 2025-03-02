@@ -459,6 +459,17 @@ def get_selected_pair_address(selected_row):
   except:
     pair_address = selected_row["pair_address"].iloc[0]
     return pair_address
+  
+def refresh_data():
+  st.cache_data.clear()
+  get_update_count()
+  for num_minutes in [5, 15, 30, 60]:
+    get_summary_data(num_minutes)
+  st.rerun()
+
+if "data_refreshed" not in st.session_state:
+    st.session_state["data_refreshed"] = True
+    refresh_data()
 
 update_count = get_update_count()
 if update_count < 5:
@@ -624,9 +635,6 @@ else:
   minutes_ago = int(time_diff.total_seconds() // 60)
 
 st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
-
-if st.button("Refresh data"):
-  st.cache_data.clear()
-  update_count = get_update_count()
-  data = get_summary_data(num_minutes)
-  st.rerun()
+if (minutes_ago > 0):
+  if st.button("Refresh data"):
+    refresh_data()
