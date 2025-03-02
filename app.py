@@ -22,7 +22,7 @@ logging.getLogger('watchdog.observers.inotify_buffer').setLevel(logging.WARNING)
 
 @sleep_and_retry
 @retry(wait=wait_exponential(multiplier=1.1, min=0.1, max=100))
-@st.cache_data(ttl=60)
+@st.cache_data()
 def get_update_count():
   conn = duckdb.connect(config.DB_FILENAME, read_only=True)
   query = "SELECT count(DISTINCT created_at) FROM pair_history"
@@ -32,7 +32,7 @@ def get_update_count():
 
 @sleep_and_retry
 @retry(wait=wait_exponential(multiplier=1.1, min=0.1, max=100))
-@st.cache_data(ttl=60, show_spinner="Fetching data...")
+@st.cache_data(show_spinner="Fetching data...")
 def get_summary_data(num_minutes):
   conn = duckdb.connect(config.DB_FILENAME, read_only=True)
   query = f"""
@@ -619,6 +619,14 @@ else:
       display_pair_detail_chart(detail_df)
 
   # Show last update time
-  last_update = data['dttm'].max().strftime("%Y-%m-%d %I:%M:%S %p")
-  st.write(f"Collected {update_count} minutes of data, last Update: {last_update}")
+  last_update_time = data['dttm'].max()
+  time_diff = pd.Timestamp.now() - last_update_time
+  minutes_ago = int(time_diff.total_seconds() // 60)
 
+st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
+
+if st.button("Refresh data"):
+  st.cache_data.clear()
+  update_count = get_update_count()
+  data = get_summary_data(num_minutes)
+  st.rerun()
