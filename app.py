@@ -407,7 +407,7 @@ def display_pair_detail_chart(pair_details):
     ).mark_line(strokeWidth=3.5).encode(
         x=alt.X('dttm:T', title='Time'),
         y=alt.Y('Value:Q', title='Avg Geek 24h Fee / TVL'),
-        color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(title='Legend')),
+        color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
         tooltip=[
             alt.Tooltip('Time:N', title='Time'),
             alt.Tooltip('Value:Q', title='Avg Geek 24h Fee / TVL')
@@ -419,7 +419,7 @@ def display_pair_detail_chart(pair_details):
     ).mark_bar(opacity=0.50).encode(
         x=alt.X('dttm:T', title='Time'),
         y=alt.Y('Value:Q', title='Fees'),
-        color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(title='Legend')),
+        color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
         tooltip=[
             alt.Tooltip('Time:N', title='Time'),
             alt.Tooltip('Value:Q', title='Fees')
@@ -492,6 +492,7 @@ else:
   grid_table = None
 
   with left_column:
+    st.write("Select a row to view Geek 24h Fee / TVL Chart")
     grid_table = AgGrid(
       data, 
       update_mode=GridUpdateMode.SELECTION_CHANGED, 
@@ -600,13 +601,11 @@ else:
   
   with right_column:
     pair_address = get_selected_pair_address(grid_table["selected_rows"])
-    if pair_address == None:
-      st.write("Select a row to view details")
-    else:
+    if pair_address != None:
       pair = data[data["pair_address"] == pair_address].iloc[0]
       name = pair["name"]
       bin_step = pair["bin_step"]
-      base_fee_percentage = pair["base_fee_percentage"]
+      base_fee_percentage = round(float(pair["base_fee_percentage"]), 2)
       token = get_token(pair_address)
       detail_df = get_pair_details(pair_address, num_minutes)
       st.markdown(f"""
