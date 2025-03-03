@@ -589,9 +589,12 @@ else:
   # Show last update time
   last_update_time = data['dttm'].max()
   time_diff = pd.Timestamp.now() - last_update_time
-  minutes_ago = int(time_diff.total_seconds() // 60)
+  try:
+    minutes_ago = int(time_diff.total_seconds() // 60)
+  except:
+    minutes_ago = -1
 
-if update_count >= 5:
+if update_count >= 5 and minutes_ago >= 0:
   st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
   if (minutes_ago >= 5):
     if st.button("Refresh data"):
