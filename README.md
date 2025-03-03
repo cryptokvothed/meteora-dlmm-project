@@ -4,26 +4,9 @@ This project is a Python application that periodically polls the [Meteora API](h
 
 The motivation behind the project was to better identify DLMM opportunities from analyzing liquidity and fees over time. The 24 Hour Fees / TVL metric is a poor indicator, because liquidity frequently moves in and out of pools. The current liquidity (in the denominator) may not be representative of the actual liquidity that generated the fees (in the numerator).
 
-## Attribution
-You are encouraged to use this library to build your own Meteora DLMM community tools. If do you use this library in another project, please be sure to provide attribution to [@kVOTHED](https://x.com/CryptoKvothed) and [@GeekLad](https://x.com/GeekLad).
+![Opportunities Table](img/aggrid-opportunities.png)
 
-## Project Structure
-
-```
-meteora_project/
-├── meteora_project/
-│   ├── __init__.py
-│   ├── apis/                  
-│   │   ├── __init__.py         # Marks the folder as a package.
-│   │   └── meteora_dlmm.py     # API module for Meteora DLMM data (formerly api.py).
-│   ├── config.py               # Configuration for API endpoints, database filename, and rate limiting settings.
-│   └── db.py                   # Functions to set up the DuckDB database and insert API data.
-├── main.py                     # Application entry point that schedules API calls at one-minute intervals.
-├── tests/                      # (Optional) Folder for tests.
-│   └── test_api.py
-├── README.md                   # This file.
-└── requirements.txt            # List of dependencies.
-```
+![Time Series Graph](img/timeseries-graph.png)
 
 ## Features
 
@@ -35,6 +18,12 @@ meteora_project/
 
 - **Time Series Data Collection:**  
   The data from each API call response (with a timestamp) is stored in a DuckDB database for time series analysis.
+
+- **Streamlit Web UI**
+  Filter/sort opportunities in a table, and view the time series data in a graph.
+
+## Attribution
+You are encouraged to use this library to build your own Meteora DLMM community tools. If do you use this library in another project, please be sure to provide attribution to [@kVOTHED](https://x.com/CryptoKvothed) and [@GeekLad](https://x.com/GeekLad).
 
 ## Installation
 
@@ -92,6 +81,12 @@ streamlit run app.py --server.headless true
 ```
 
 The database will have to have collected at least 5 minutes worth of data in order for the web UI to display data.
+
+## Technologies Used
+- [Meteora DLMM API](https://dlmm-api.meteora.ag/swagger-ui/): API for obtaining Meteora DLMM data
+- [DuckDB](https://duckdb.org/): An awesome, performant, single-file database similar to SQLite, but more robust
+- [Streamlit](https://streamlit.io/): A Python library to quickly build a web UI for data-driven applications
+- [streamlit-aggrid](https://github.com/PablocFonseca/streamlit-aggrid): A python library that brings [AG Grid](https://www.ag-grid.com/) to Streamlit
 
 ## License
 
