@@ -152,7 +152,9 @@ SELECT created_at dttm,
     PARTITION BY pair_address
     ORDER BY created_at
   ) num_tick_down,
-  num_tick_up / (num_tick_up + num_tick_down) pct_tick_up,
+  round(
+    100 * num_tick_up / (num_tick_up + num_tick_down)
+  ) pct_tick_up,
   min_price,
   max_price,
   pct_price_range,

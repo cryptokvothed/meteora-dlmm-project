@@ -4,10 +4,14 @@ import os
 import duckdb
 import pandas as pd
 import logging
+from ratelimit import sleep_and_retry
+from tenacity import retry, wait_exponential
 from meteora_project import config
 
 logger = logging.getLogger(__name__)
 
+@sleep_and_retry
+@retry(wait=wait_exponential(multiplier=1.1, min=0.1, max=100))
 def setup_database(db_name=config.DB_FILENAME):
     """
     Connects to the DuckDB database, creates tables, and returns the connection.
