@@ -525,13 +525,26 @@ else:
     gb.configure_side_bar()
     gb.configure_default_column(resizable=True, sortable=True, filter=True, wrapHeaderText=True, autoHeaderHeight=True)
     gb.configure_grid_options(suppressCellFocus=True)
-    gb.configure_grid_options(initialState={"filter": st.session_state["filter_model"]})
+    gb.configure_grid_options(initialState={
+      "filter": st.session_state["filter_model"],
+      "sort": {
+        "sortModel": [
+          {
+              "colId": "pct_geek_fees_liquidity_24h",
+              "sort": "desc"
+          },
+        ],
+      },
+      "columnVisibility": {
+        "hiddenColIds": ["pair_address"]
+      }
+    })
     gb.configure_column("name", headerName="Pair Name", filterParams={"buttons": ["apply", "reset"], "closeOnApply": True})
     gb.configure_column("bin_step", headerName="Bin Step", maxWidth=100, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
     gb.configure_column("base_fee_percentage", headerName="Base Fee Percentage", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
     gb.configure_column("pct_minutes_with_volume", headerName="% Minutes w/ Volume", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
     gb.configure_column("liquidity", headerName="Liquidity", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "lessThan", "buttons": ["apply", "reset"], "closeOnApply": True})
-    gb.configure_column("pct_geek_fees_liquidity_24h", headerName="Geek 24h Fee / TVL", maxWidth=120, sort="desc", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "maxNumConditions": 1, "buttons": ["apply", "reset"], "closeOnApply": True})
+    gb.configure_column("pct_geek_fees_liquidity_24h", headerName="Geek 24h Fee / TVL", maxWidth=120, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "maxNumConditions": 1, "buttons": ["apply", "reset"], "closeOnApply": True})
     gb.configure_column("pair_address", hide=True)
     grid_options = gb.build()
 
