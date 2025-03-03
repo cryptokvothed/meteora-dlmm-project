@@ -5,7 +5,7 @@ import pandas as pd
 from meteora_project import config
 from ratelimit import sleep_and_retry
 from tenacity import retry, wait_exponential
-from st_aggrid import AgGrid, GridUpdateMode
+from st_aggrid import AgGrid, GridUpdateMode, GridOptionsBuilder
 import altair as alt
 
 TIMEFRAMES = [5, 15, 30, 60, 120, 360, 720, 1440]
@@ -473,6 +473,9 @@ def refresh_data():
     get_summary_data(num_minutes)
   st.rerun()
 
+def save_filter_model(filter_model):
+  st.session_state["filter_model"] = filter_model
+
 if "data_refreshed" not in st.session_state:
     st.session_state["data_refreshed"] = True
     refresh_data()
@@ -485,137 +488,72 @@ else:
   num_minutes = display_num_minutes_selectbox(update_count)
   data = get_summary_data(num_minutes)
 
-  default_filters = {
-    "filterModel": {
-      "liquidity": {
-        "filterType": "number",
-        "type": "greaterThanOrEqual",
-        "filter": 1000,
+  if "filter_model" not in st.session_state:
+    st.session_state["filter_model"] = {
+      "filterModel": {
+        "liquidity": {
+          "filterType": "number",
+          "type": "greaterThanOrEqual",
+          "filter": 1000,
+        },
+        "pct_minutes_with_volume": {
+          "filterType": "number",
+          "type": "greaterThan",
+          "filter": 50,
+        },      
+        "pct_geek_fees_liquidity_24h": {
+          "filterType": "number",
+          "type": "greaterThan",
+          "filter": 0,
+        },      
       },
-      "pct_minutes_with_volume": {
-        "filterType": "number",
-        "type": "greaterThan",
-        "filter": 50,
-      },      
-      "pct_geek_fees_liquidity_24h": {
-        "filterType": "number",
-        "type": "greaterThan",
-        "filter": 0,
-      },      
-    },
-  }
+    }
 
   left_column, right_column = st.columns([1, 1])
   grid_table = None
 
   with left_column:
     st.write("Select a row to view Geek 24h Fee / TVL Chart")
+    columns_to_display = [
+      "name", "bin_step", "base_fee_percentage", 
+      "liquidity", "pct_minutes_with_volume", "pct_geek_fees_liquidity_24h",
+      "pair_address"
+    ]
+    data_copy = data[columns_to_display].copy()
+    gb = GridOptionsBuilder.from_dataframe(data_copy)
+    gb.configure_selection('single', use_checkbox=False)
+    gb.configure_side_bar()
+    gb.configure_default_column(resizable=True, sortable=True, filter=True, wrapHeaderText=True, autoHeaderHeight=True)
+    gb.configure_grid_options(suppressCellFocus=True)
+    gb.configure_grid_options(initialState={"filter": st.session_state["filter_model"]})
+    gb.configure_column("name", headerName="Pair Name", filterParams={"buttons": ["apply", "reset"], "closeOnApply": True})
+    gb.configure_column("bin_step", headerName="Bin Step", maxWidth=100, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+    gb.configure_column("base_fee_percentage", headerName="Base Fee Percentage", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+    gb.configure_column("pct_minutes_with_volume", headerName="% Minutes w/ Volume", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+    gb.configure_column("liquidity", headerName="Liquidity", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "lessThan", "buttons": ["apply", "reset"], "closeOnApply": True})
+    gb.configure_column("pct_geek_fees_liquidity_24h", headerName="Geek 24h Fee / TVL", maxWidth=120, sort="desc", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "maxNumConditions": 1, "buttons": ["apply", "reset"], "closeOnApply": True})
+    gb.configure_column("pair_address", hide=True)
+    grid_options = gb.build()
+
     grid_table = AgGrid(
-      data, 
-      update_mode=GridUpdateMode.SELECTION_CHANGED, 
-      reload_data=True, 
-      gridOptions={
-        "suppressCellFocus": True,
-        "sideBar": {
-          "toolPanels": [{
-            "id": "filters",
-              "labelDefault": "Filters",
-              "labelKey": "filters",
-              "iconKey": "filter",
-              "toolPanel": "agFiltersToolPanel",
-            "hiddenByDefault": True,
-          }],
-        },
-        "rowSelection": {
-           "mode": "singleRow",
-           "checkboxes": False,
-           "enableClickSelection": True,
-        },
-        "initialState": {
-          "filter": default_filters,
-        },
-        "defaultColDef": { 
-          "resizable": True, 
-          "sortable": True, 
-          "suppressHeaderMenuButton": True, 
-          "filter": True,
-          "wrapHeaderText": True,
-          "autoHeaderHeight": True,
-        },
-        "autoSizeStrategy": {"type": "fitCellContents", "skipHeader": False}, 
-        "columnDefs": [
-          { 
-            "headerName": "Pair Name", 
-            "field": "name",
-            "filterParams": {
-              "buttons": ["apply", "reset"],
-              "closeOnApply": True,
-            }
-          },
-          { 
-            "headerName": "Bin Step", 
-            "maxWidth": 75,
-            "field": "bin_step", 
-            "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
-            "precision": 0,
-            "filterParams": {
-              "defaultOption": "greaterThanOrEqual",
-              "buttons": ["apply", "reset"],
-              "closeOnApply": True,
-            }
-          },
-          { 
-            "headerName": "Base Fee Percentage", 
-            "maxWidth": 100,
-            "field": "base_fee_percentage", 
-            "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
-            "precision": 2,
-            "filterParams": {
-              "defaultOption": "greaterThanOrEqual",
-              "buttons": ["apply", "reset"],
-              "closeOnApply": True,
-            }
-          },
-          { 
-            "headerName": "% Minutes w/ Volume", 
-            "maxWidth": 100,
-            "field": "pct_minutes_with_volume", 
-            "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
-            "precision": 0,
-            "filterParams": {
-              "defaultOption": "greaterThanOrEqual",
-              "buttons": ["apply", "reset"],
-              "closeOnApply": True,
-            }
-          },
-          { 
-            "headerName": "Liquidity", 
-            "field": "liquidity", 
-            "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
-            "precision": 2,
-            "filterParams": {
-              "defaultOption": "lessThan",
-              "buttons": ["apply", "reset"],
-              "closeOnApply": True,
-            }
-          },
-          { 
-            "headerName": "Geek 24h Fee / TVL", 
-            "maxWidth": 120,
-            "field": "pct_geek_fees_liquidity_24h", 
-            "sort": "desc",
-            "type": ["numericColumn", "numberColumnFilter", "customNumericFormat"], 
-            "precision": 2,
-            "filterParams": {
-              "defaultOption": "greaterThanOrEqual",
-              "maxNumConditions": 1,
-              "buttons": ["apply", "reset"],
-              "closeOnApply": True,
-            }
-          },        
-      ] 
-    })
-  
+        data_copy, 
+        gridOptions=grid_options, 
+        update_mode=GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.MODEL_CHANGED,  # Add MODEL_CHANGED
+        reload_data=True,
+        fit_columns_on_grid_load=False,
+        key='grid1',
+        on_grid_ready=lambda params: save_filter_model(params.get("api").getFilterModel())
+    )
+
+    # After the AgGrid component, add this code to detect filter changes
+    if grid_table and "data" in grid_table:
+        # Get the current filter model from the grid
+        current_filter_model = grid_table.get("filter_state", {}).get("filterModel", {})
+        
+        # If it's different from the saved one, update it
+        if current_filter_model != st.session_state.get("filter_model", {}).get("filterModel", {}):
+            save_filter_model({"filterModel": current_filter_model})
+
   with right_column:
     pair_address = get_selected_pair_address(grid_table["selected_rows"])
     if pair_address != None:
