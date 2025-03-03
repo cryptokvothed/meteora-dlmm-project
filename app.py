@@ -453,7 +453,7 @@ def display_pair_detail_chart(pair_details):
 def display_num_minutes_selectbox(update_count):
   options = [x for x in TIMEFRAMES if x <= update_count]
   left_column, _ = st.columns([1, 4])
-  index = index[len(options)-1] if len(options) < 4 else 2
+  index = len(options)-1 if len(options) < 4 else 2
   with left_column:
     num_minutes = st.selectbox("Analysis Timeframe", options=options, format_func=lambda x: TIMEFRAME_LABELS[x], index=index)
     return num_minutes
@@ -482,7 +482,7 @@ if "data_refreshed" not in st.session_state:
 
 update_count = get_update_count()
 if update_count < 5:
-  st.write(f"Only {update_count} minutes of data collected.")
+  st.write(f"Only {update_count} minute{'s' if update_count != 1 else ''} of data collected.")
   st.write("Page will display when at least 5 minutes of data is collected.")
 else:
   num_minutes = display_num_minutes_selectbox(update_count)
@@ -591,7 +591,8 @@ else:
   time_diff = pd.Timestamp.now() - last_update_time
   minutes_ago = int(time_diff.total_seconds() // 60)
 
-st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
-if (minutes_ago >= 5):
-  if st.button("Refresh data"):
-    refresh_data()
+if update_count >= 5:
+  st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
+  if (minutes_ago >= 5):
+    if st.button("Refresh data"):
+      refresh_data()
