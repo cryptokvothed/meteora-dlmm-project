@@ -21,7 +21,7 @@ TIMEFRAME_LABELS = {
 }
 
 # Setup so the table is displayed in full width
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide", page_title="DLMM Opportunities")
 st.title("DLMM Opportunities")
 
 # Database connection
@@ -577,16 +577,21 @@ else:
       name = pair["name"]
       bin_step = pair["bin_step"]
       base_fee_percentage = round(float(pair["base_fee_percentage"]), 2)
+      pct_below_max = round(pair["pct_below_max"])
+      bins_below_max = round(pair["bins_below_max"])
+      bins_range = round(pair["bins_range"])
       token = get_token(pair_address)
       detail_df = get_pair_details(pair_address, num_minutes)
       st.markdown(f"""
           <a href="https://app.meteora.ag/dlmm/{pair_address}" target="_blank">{name} {bin_step} Bin Step, {base_fee_percentage}% Base Fee</a>
+          &nbsp;&nbsp;
           <a href="https://gmgn.ai/sol/token/{token[1]}" target="_blank">
             <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSsrw95DKwTe5yvTSSL0AumcHhLZsiR9SP_1jtO6-_PQltuwbWDWilFY9vv&s" alt="GMGN Link to Token" style="width:20px;height:20px;">
           </a>
         """, 
         unsafe_allow_html=True
       )
+      st.write(f"Bin Price Range: {bins_range} bins, Bins Below Max Price: {bins_below_max} bins ({-pct_below_max if pct_below_max > 0 else 0}%)")
       display_pair_detail_chart(detail_df)
 
   # Show last update time
