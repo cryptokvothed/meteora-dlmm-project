@@ -468,9 +468,10 @@ def get_selected_pair_address(selected_row):
   
 def refresh_data():
   st.cache_data.clear()
-  get_update_count()
+  update_count = get_update_count()
   for num_minutes in TIMEFRAMES:
-    get_summary_data(num_minutes)
+    if update_count >= num_minutes:
+      get_summary_data(num_minutes)
   st.rerun()
 
 def save_filter_model(filter_model):
