@@ -186,7 +186,7 @@ def get_summary_data(num_minutes):
       price_volatility_ratio
     FROM cumulative_stats
     WHERE
-      num_minutes = {num_minutes}
+      created_at = (SELECT max(created_at) FROM pair_history)
   """
   summary_data = conn.execute(query).fetchdf()
   conn.close()
@@ -337,6 +337,8 @@ def get_pair_details(pair_address, num_minutes):
     FROM cumulative_stats
     WHERE
       pair_address = '{pair_address}'
+    ORDER BY
+      created_at
   """
   pair_details = conn.execute(query).fetchdf()
   conn.close()
