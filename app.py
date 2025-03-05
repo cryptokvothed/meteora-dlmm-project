@@ -441,7 +441,7 @@ def display_pair_detail_chart(pair_details):
     )
 
     # Layer the charts and resolve the scales
-    combined_chart = alt.layer(line_chart, bar_chart).resolve_scale(
+    combined_chart = alt.layer(bar_chart, line_chart).resolve_scale(
         y='independent'
     ).properties(
         width='container',
