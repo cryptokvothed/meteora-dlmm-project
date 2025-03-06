@@ -55,6 +55,7 @@ You are encouraged to use this library to build your own Meteora DLMM community 
    - **API_BASE_URL:** The base URL for the Meteora API
    - **LOG_LEVEL:** The log level, set to `DEBUG` for more verbose logging
    - **DEFAULT_LIMIT:** The number of pairs to fetch per page from the API
+   - **DB_PATH:** The fully qualified path to the databse file (default is current directory)
    - **DB_FILENAME:** The filename for your DuckDB database
    - **RATE_LIMIT_CALLS** and **RATE_LIMIT_PERIOD:** For rate limiting (e.g., 30 calls per minute)
 

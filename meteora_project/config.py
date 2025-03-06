@@ -14,7 +14,10 @@ LOG_LEVEL = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INF
 DEFAULT_LIMIT = int(os.getenv("DEFAULT_LIMIT", 100))
 
 # Database configuration
-DB_FILENAME = os.getenv("DB_FILENAME", "meteora_dlmm_time_series.duckdb")
+DB_PATH = os.getenv("DB_PATH", os.getcwd()).rstrip('/')
+if not os.path.exists(DB_PATH):
+    os.makedirs(DB_PATH)
+DB_FILENAME = DB_PATH + "/" + os.getenv("DB_FILENAME", "meteora_dlmm_time_series.duckdb")
 
 # Rate Limiting Configuration
 RATE_LIMITS = {
