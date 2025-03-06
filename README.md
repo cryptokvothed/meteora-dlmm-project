@@ -25,29 +25,68 @@ The motivation behind the project was to better identify DLMM opportunities from
 ## Attribution
 You are encouraged to use this library to build your own Meteora DLMM community tools. If do you use this library in another project, please be sure to provide attribution to [@kVOTHED](https://x.com/CryptoKvothed) and [@GeekLad](https://x.com/GeekLad).
 
-## Installation
+## Usage
+The easiest way to run the app is to use Docker. Alternatively, you can run it 
+directly on your system.  Either way, to get started, you'll want to clone the 
+repo first:
 
-1. **Clone the Repository:**
+```bash
+git clone https://github.com/cryptokvothed/meteora-dlmm-project.git
+cd meteora-dlmm-project
+```
 
-   ```bash
-   git clone https://github.com/cryptokvothed/meteora-dlmm-project.git
-   cd meteora-dlmm-project
-   ```
+### Run On Docker
+First, build the Docker image:
 
-2. **Create a Virtual Environment (optional but recommended):**
+```bash
+docker build --no-cache -t dlmm-time-series .
+```
+
+This will create an image called `dlmm-time-series`.  To create a container and 
+run the app:
+
+```bash
+docker run -v $(pwd)/data:/data -p 8501:8501 --name dlmm-time-series dlmm-time-series
+```
+
+You can change the `/data` volume to point anywhere you want on the local system.
+
+This will:
+  - Create a container called `dlmm-time-series`
+  - A `data` directory within the present working
+  - A DuckDB database file called `meteora_dlmm_time_series.duckdb` within the `data` directory
+  - Will allow you to access the Streamlit UI from http://localhost:8501
+
+The following environment variables are available, if you want to make any 
+adjustments:
+  - **API_BASE_URL:** The base URL for the Meteora API
+  - **LOG_LEVEL:** The log level, set to `DEBUG` for more verbose logging
+  - **DEFAULT_LIMIT:** The number of pairs to fetch per page from the API
+  - **DB_FILENAME:** The filename for your DuckDB database
+  - **RATE_LIMIT_CALLS** and **RATE_LIMIT_PERIOD:** For rate limiting (e.g., 30 calls per minute)
+
+Note: Although `DB_PATH` is an environment variable, it is recommended you 
+leave it as-is, and simply change the local mapping to the `/data` volume. 
+Changing it could cause unexpected results.
+
+### Run Locally
+
+#### Installation
+
+1. **Create a Virtual Environment (optional but recommended):**
 
    ```bash
    python -m venv venv
    source venv/bin/activate   # On Windows: venv\Scripts\activate
    ```
 
-3. **Install Dependencies:**
+2. **Install Dependencies:**
 
    ```bash
    pip install -r requirements.txt
    ```
 
-4. **Configuration (optional):**
+3. **Configuration (optional):**
 
    Rename the `.env.sample` file to `.env`, and update accordingly.
 
@@ -59,9 +98,7 @@ You are encouraged to use this library to build your own Meteora DLMM community 
    - **DB_FILENAME:** The filename for your DuckDB database
    - **RATE_LIMIT_CALLS** and **RATE_LIMIT_PERIOD:** For rate limiting (e.g., 30 calls per minute)
 
-## Usage
-
-### Load Database
+#### Load Database
 To start collecting data, run:
 
 ```bash
@@ -74,14 +111,16 @@ DuckDB database (default file: `meteora_dlmm_time_series.duckdb`).
 
 Press `Ctrl+C` to stop the scheduler gracefully.
 
-### Launch Web UI
+#### Launch Web UI
 The web UI is a [Streamlit](https://streamlit.io/) app.  To start it run:
 
 ```
 streamlit run app.py --server.headless true
 ```
 
-The database will have to have collected at least 5 minutes worth of data in order for the web UI to display data.
+You will be able to access the Streamlit web app at http://localhost:8501.  The 
+database will have to have collected at least 5 minutes worth of data in order 
+for the web UI to display data.
 
 ## Technologies Used
 - [Meteora DLMM API](https://dlmm-api.meteora.ag/swagger-ui/): API for obtaining Meteora DLMM data
