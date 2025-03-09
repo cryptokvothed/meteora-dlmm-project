@@ -32,7 +32,7 @@ st.info("""
   the TVL. This makes the ratio more conservative, as it also accounts for the 
   volatility in the TVL over time.
         
-  Always do your own research and any pools you find using this tool should not 
+  Always do your own research. Any pools you find using this tool should not 
   be deemed financial advice. By using this tool, you agree to hold the 
   creators harmless for any losses incurred as a result of investments taken 
   based on the information provided.

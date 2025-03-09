@@ -4,6 +4,10 @@ This project is a Python application that periodically polls the [Meteora API](h
 
 The motivation behind the project was to better identify DLMM opportunities from analyzing liquidity and fees over time. The 24 Hour Fees / TVL metric is a poor indicator, because liquidity frequently moves in and out of pools. The current liquidity (in the denominator) may not be representative of the actual liquidity that generated the fees (in the numerator).
 
+## Live Demo
+Check out the live demo at https://dlmm.geeklad.com
+
+## Screenshots
 ![Opportunities Table](img/aggrid-opportunities.png)
 
 ![Time Series Graph](img/timeseries-graph.png)
@@ -46,7 +50,7 @@ This will create an image called `dlmm-time-series`.  To create a container and
 run the app:
 
 ```bash
-docker run -v $(pwd)/data:/data -p 8501:8501 --name dlmm-time-series dlmm-time-series
+docker run -d -v $(pwd)/data:/data -p 8501:8501 --name dlmm-time-series dlmm-time-series
 ```
 
 You can change the `/data` volume to point anywhere you want on the local system.
