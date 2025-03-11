@@ -6,6 +6,7 @@ load_dotenv()
 
 # API Configuration
 API_BASE_URL = os.getenv("API_BASE_URL", "https://dlmm-api.meteora.ag")
+JUPITER_API_BASE_URL = "https://fe-api.jup.ag/api/v1"
 
 # Logging Configuration
 LOG_LEVEL = getattr(logging, os.getenv("LOG_LEVEL", "INFO").upper(), logging.INFO)

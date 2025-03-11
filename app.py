@@ -2,7 +2,9 @@ import logging
 import duckdb
 import streamlit as st
 import pandas as pd
+import asyncio
 from meteora_project import config
+from meteora_project.apis.jupiter import get_organic_score
 from ratelimit import sleep_and_retry
 from tenacity import retry, wait_exponential
 from st_aggrid import AgGrid, GridUpdateMode, GridOptionsBuilder
@@ -493,131 +495,141 @@ def refresh_data():
 def save_filter_model(filter_model):
   st.session_state["filter_model"] = filter_model
 
-if "data_refreshed" not in st.session_state:
-    st.session_state["data_refreshed"] = True
-    refresh_data()
+async def get_pair_data(get_pair_details, get_token, num_minutes, data, pair_address):
+    pair = data[data["pair_address"] == pair_address].iloc[0]
+    name = pair["name"]
+    bin_step = pair["bin_step"]
+    base_fee_percentage = round(float(pair["base_fee_percentage"]), 2)
+    pct_below_max = round(pair["pct_below_max"])
+    bins_below_max = round(pair["bins_below_max"])
+    bins_range = round(pair["bins_range"])
+    token = get_token(pair_address)
+    detail_df = get_pair_details(pair_address, num_minutes)
+    organic_score = await get_organic_score(token[1])
+    markdown = f"""
+        <br/>
+        <a href="https://app.meteora.ag/dlmm/{pair_address}" target="_blank">{name} {bin_step} Bin Step, {base_fee_percentage}% Base Fee</a>
+        &nbsp;&nbsp;
+        <a href="https://gmgn.ai/sol/token/{token[1]}" target="_blank">
+        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSsrw95DKwTe5yvTSSL0AumcHhLZsiR9SP_1jtO6-_PQltuwbWDWilFY9vv&s" alt="GMGN Link to Token" style="width:20px;height:20px;">
+        </a>
+      """
+    markdown += f"&nbsp;&nbsp; Organic Score: {organic_score} <br/>" if organic_score != None else "<br/>"
+    markdown += f"Bin Price Range: {bins_range} bins, Bins Below Max Price: {bins_below_max} bins ({-pct_below_max if pct_below_max > 0 else 0}%)"
+    st.markdown(markdown, unsafe_allow_html=True)
+    return detail_df
 
-update_count = get_update_count()
-if update_count < 5:
-  st.write(f"Only {update_count} minute{'s' if update_count != 1 else ''} of data collected.")
-  st.write("Page will display when at least 5 minutes of data is collected.")
-else:
-  num_minutes = display_num_minutes_selectbox(update_count)
-  data = get_summary_data(num_minutes)
+async def main():
+    if "data_refreshed" not in st.session_state:
+        st.session_state["data_refreshed"] = True
+        refresh_data()
 
-  if "filter_model" not in st.session_state:
-    st.session_state["filter_model"] = {
-      "filterModel": {
-        "liquidity": {
-          "filterType": "number",
-          "type": "greaterThanOrEqual",
-          "filter": 1000,
-        },
-        "pct_minutes_with_volume": {
-          "filterType": "number",
-          "type": "greaterThan",
-          "filter": 50,
-        },      
-        "pct_geek_fees_liquidity_24h": {
-          "filterType": "number",
-          "type": "greaterThan",
-          "filter": 0,
-        },      
-      },
-    }
+    update_count = get_update_count()
 
-  left_column, right_column = st.columns([1, 1])
-  grid_table = None
+    if update_count < 5:
+        st.write(f"Only {update_count} minute{'s' if update_count != 1 else ''} of data collected.")
+        st.write("Page will display when at least 5 minutes of data is collected.")
+    else:
+        num_minutes = display_num_minutes_selectbox(update_count)
+        data = get_summary_data(num_minutes)
 
-  with left_column:
-    st.write("Select a row to view Geek 24h Fee / TVL Chart")
-    columns_to_display = [
-      "name", "bin_step", "base_fee_percentage", 
-      "liquidity", "pct_minutes_with_volume", "pct_geek_fees_liquidity_24h",
-      "pair_address"
-    ]
-    data_copy = data[columns_to_display].copy()
-    gb = GridOptionsBuilder.from_dataframe(data_copy)
-    gb.configure_selection('single', use_checkbox=False)
-    gb.configure_side_bar()
-    gb.configure_default_column(resizable=True, sortable=True, filter=True, wrapHeaderText=True, autoHeaderHeight=True)
-    gb.configure_grid_options(suppressCellFocus=True)
-    gb.configure_grid_options(initialState={
-      "filter": st.session_state["filter_model"],
-      "sort": {
-        "sortModel": [
-          {
-              "colId": "pct_geek_fees_liquidity_24h",
-              "sort": "desc"
-          },
-        ],
-      },
-      "columnVisibility": {
-        "hiddenColIds": ["pair_address"]
-      }
-    })
-    gb.configure_column("name", headerName="Pair Name", filterParams={"buttons": ["apply", "reset"], "closeOnApply": True})
-    gb.configure_column("bin_step", headerName="Bin Step", maxWidth=100, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
-    gb.configure_column("base_fee_percentage", headerName="Base Fee Percentage", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
-    gb.configure_column("pct_minutes_with_volume", headerName="% Minutes w/ Volume", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
-    gb.configure_column("liquidity", headerName="Liquidity", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
-    gb.configure_column("pct_geek_fees_liquidity_24h", headerName="Geek 24h Fee / TVL", maxWidth=120, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "maxNumConditions": 1, "buttons": ["apply", "reset"], "closeOnApply": True})
-    gb.configure_column("pair_address", hide=True)
-    grid_options = gb.build()
+        if "filter_model" not in st.session_state:
+            st.session_state["filter_model"] = {
+                "filterModel": {
+                    "liquidity": {
+                        "filterType": "number",
+                        "type": "greaterThanOrEqual",
+                        "filter": 1000,
+                    },
+                    "pct_minutes_with_volume": {
+                        "filterType": "number",
+                        "type": "greaterThan",
+                        "filter": 50,
+                    },      
+                    "pct_geek_fees_liquidity_24h": {
+                        "filterType": "number",
+                        "type": "greaterThan",
+                        "filter": 0,
+                    },      
+                },
+            }
 
-    grid_table = AgGrid(
-        data_copy, 
-        gridOptions=grid_options, 
-        update_mode=GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.MODEL_CHANGED,  # Add MODEL_CHANGED
-        reload_data=True,
-        fit_columns_on_grid_load=False,
-        key='grid1',
-        on_grid_ready=lambda params: save_filter_model(params.get("api").getFilterModel())
-    )
+        left_column, right_column = st.columns([1, 1])
+        grid_table = None
 
-    # After the AgGrid component, add this code to detect filter changes
-    if grid_table and "data" in grid_table:
-        # Get the current filter model from the grid
-        current_filter_model = grid_table.get("filter_state", {}).get("filterModel", {})
-        
-        # If it's different from the saved one, update it
-        if current_filter_model != st.session_state.get("filter_model", {}).get("filterModel", {}):
-            save_filter_model({"filterModel": current_filter_model})
+        with left_column:
+            st.write("Select a row to view Geek 24h Fee / TVL Chart")
+            columns_to_display = [
+                "name", "bin_step", "base_fee_percentage", 
+                "liquidity", "pct_minutes_with_volume", "pct_geek_fees_liquidity_24h",
+                "pair_address"
+            ]
+            data_copy = data[columns_to_display].copy()
+            gb = GridOptionsBuilder.from_dataframe(data_copy)
+            gb.configure_selection('single', use_checkbox=False)
+            gb.configure_side_bar()
+            gb.configure_default_column(resizable=True, sortable=True, filter=True, wrapHeaderText=True, autoHeaderHeight=True)
+            gb.configure_grid_options(suppressCellFocus=True)
+            gb.configure_grid_options(initialState={
+                "filter": st.session_state["filter_model"],
+                "sort": {
+                    "sortModel": [
+                        {
+                            "colId": "pct_geek_fees_liquidity_24h",
+                            "sort": "desc"
+                        },
+                    ],
+                },
+                "columnVisibility": {
+                    "hiddenColIds": ["pair_address"]
+                }
+            })
+            gb.configure_column("name", headerName="Pair Name", filterParams={"buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("bin_step", headerName="Bin Step", maxWidth=100, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("base_fee_percentage", headerName="Base Fee Percentage", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("pct_minutes_with_volume", headerName="% Minutes w/ Volume", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("liquidity", headerName="Liquidity", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("pct_geek_fees_liquidity_24h", headerName="Geek 24h Fee / TVL", maxWidth=120, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "maxNumConditions": 1, "buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("pair_address", hide=True)
+            grid_options = gb.build()
 
-  with right_column:
-    pair_address = get_selected_pair_address(grid_table["selected_rows"])
-    if pair_address != None:
-      pair = data[data["pair_address"] == pair_address].iloc[0]
-      name = pair["name"]
-      bin_step = pair["bin_step"]
-      base_fee_percentage = round(float(pair["base_fee_percentage"]), 2)
-      pct_below_max = round(pair["pct_below_max"])
-      bins_below_max = round(pair["bins_below_max"])
-      bins_range = round(pair["bins_range"])
-      token = get_token(pair_address)
-      detail_df = get_pair_details(pair_address, num_minutes)
-      st.markdown(f"""
-          <a href="https://app.meteora.ag/dlmm/{pair_address}" target="_blank">{name} {bin_step} Bin Step, {base_fee_percentage}% Base Fee</a>
-          &nbsp;&nbsp;
-          <a href="https://gmgn.ai/sol/token/{token[1]}" target="_blank">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSsrw95DKwTe5yvTSSL0AumcHhLZsiR9SP_1jtO6-_PQltuwbWDWilFY9vv&s" alt="GMGN Link to Token" style="width:20px;height:20px;">
-          </a>
-        """, 
-        unsafe_allow_html=True
-      )
-      st.write(f"Bin Price Range: {bins_range} bins, Bins Below Max Price: {bins_below_max} bins ({-pct_below_max if pct_below_max > 0 else 0}%)")
-      display_pair_detail_chart(detail_df)
+            grid_table = AgGrid(
+                data_copy, 
+                gridOptions=grid_options, 
+                update_mode=GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.MODEL_CHANGED,  # Add MODEL_CHANGED
+                reload_data=True,
+                fit_columns_on_grid_load=False,
+                key='grid1',
+                on_grid_ready=lambda params: save_filter_model(params.get("api").getFilterModel())
+            )
 
-  # Show last update time
-  last_update_time = data['dttm'].max()
-  time_diff = pd.Timestamp.now() - last_update_time
-  try:
-    minutes_ago = int(time_diff.total_seconds() // 60)
-  except:
-    minutes_ago = -1
+            # After the AgGrid component, add this code to detect filter changes
+            if grid_table and "data" in grid_table:
+                # Get the current filter model from the grid
+                current_filter_model = grid_table.get("filter_state", {}).get("filterModel", {})
+                
+                # If it's different from the saved one, update it
+                if current_filter_model != st.session_state.get("filter_model", {}).get("filterModel", {}):
+                    save_filter_model({"filterModel": current_filter_model})
 
-if update_count >= 5 and minutes_ago >= 0:
-  st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
-  if (minutes_ago >= 5):
-    if st.button("Refresh data"):
-      refresh_data()
+        with right_column:
+            pair_address = get_selected_pair_address(grid_table["selected_rows"])
+            if pair_address != None:
+                detail_df = await get_pair_data(get_pair_details, get_token, num_minutes, data, pair_address)
+                display_pair_detail_chart(detail_df)
+
+        # Show last update time
+        last_update_time = data['dttm'].max()
+        time_diff = pd.Timestamp.now() - last_update_time
+        try:
+            minutes_ago = int(time_diff.total_seconds() // 60)
+        except:
+            minutes_ago = -1
+
+    if update_count >= 5 and minutes_ago >= 0:
+        st.write(f"Collected {update_count} minutes of data, updated {minutes_ago} minute{'s' if minutes_ago != 1 else ''} ago")
+        if (minutes_ago >= 5):
+            if st.button("Refresh data"):
+                refresh_data()
+
+asyncio.run(main())
