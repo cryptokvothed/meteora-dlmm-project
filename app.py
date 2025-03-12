@@ -410,16 +410,16 @@ def display_pair_detail_chart(pair_details):
 
     # Melt the DataFrame to combine the metrics into one column
     melted_pair_details = pair_details.melt(
-        id_vars=['dttm'],
-        value_vars=['pct_geek_fees_liquidity_24h', 'fees'],
-        var_name='Legend',
-        value_name='Value'
+      id_vars=['dttm'],
+      value_vars=['pct_geek_fees_liquidity_24h', 'liquidity'],
+      var_name='Legend',
+      value_name='Value'
     )
 
     # Map metric names to more readable labels
     metric_names = {
-        'pct_geek_fees_liquidity_24h': 'Avg Geek 24h Fee / TVL',
-        'fees': 'Fees'
+      'pct_geek_fees_liquidity_24h': 'Avg Geek 24h Fee / TVL',
+      'liquidity': 'Liquidity'
     }
     melted_pair_details['Legend'] = melted_pair_details['Legend'].map(metric_names)  
 
@@ -428,46 +428,114 @@ def display_pair_detail_chart(pair_details):
 
     # Define the color scale to ensure consistent colors
     color_scale = alt.Scale(
-        domain=['Avg Geek 24h Fee / TVL', 'Fees'],
-        range=['red', 'steelblue']
+      domain=['Avg Geek 24h Fee / TVL', 'Liquidity'],
+      range=['red', 'steelblue']
     )
 
     # Create individual charts for each metric
-    line_chart = alt.Chart(
-        melted_pair_details[melted_pair_details['Legend'] == 'Avg Geek 24h Fee / TVL']
+    line_chart_1 = alt.Chart(
+      melted_pair_details[melted_pair_details['Legend'] == 'Avg Geek 24h Fee / TVL']
     ).mark_line(strokeWidth=3.5).encode(
-        x=alt.X('dttm:T', title='Time'),
-        y=alt.Y('Value:Q', title='Avg Geek 24h Fee / TVL'),
-        color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
-        tooltip=[
-            alt.Tooltip('Time:N', title='Time'),
-            alt.Tooltip('Value:Q', title='Avg Geek 24h Fee / TVL')
-        ]
+      x=alt.X('dttm:T', title='Time'),
+      y=alt.Y('Value:Q', title='Avg Geek 24h Fee / TVL'),
+      color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
+      tooltip=[
+        alt.Tooltip('Time:N', title='Time'),
+        alt.Tooltip('Value:Q', title='Avg Geek 24h Fee / TVL')
+      ]
     )
 
-    bar_chart = alt.Chart(
-        melted_pair_details[melted_pair_details['Legend'] == 'Fees']
-    ).mark_bar(opacity=0.50).encode(
-        x=alt.X('dttm:T', title='Time'),
-        y=alt.Y('Value:Q', title='Fees'),
-        color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
-        tooltip=[
-            alt.Tooltip('Time:N', title='Time'),
-            alt.Tooltip('Value:Q', title='Fees')
-        ]
+    line_chart_2 = alt.Chart(
+      melted_pair_details[melted_pair_details['Legend'] == 'Liquidity']
+    ).mark_line(strokeWidth=3.5).encode(
+      x=alt.X('dttm:T', title='Time'),
+      y=alt.Y('Value:Q', title='Liquidity'),
+      color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
+      tooltip=[
+      alt.Tooltip('Time:N', title='Time'),
+      alt.Tooltip('Value:Q', title='Liquidity')
+      ]
     )
 
     # Layer the charts and resolve the scales
-    combined_chart = alt.layer(bar_chart, line_chart).resolve_scale(
-        y='independent'
+    combined_chart_1 = alt.layer(line_chart_2, line_chart_1).resolve_scale(
+      y='independent'
     ).properties(
-        width='container',
-        height=400,
-        title='Fees and Avg Geek 24h Fee / TVL Over Time'
+      width='container',
+      height=400,
+      title='Liquidity and Avg Geek 24h Fee / TVL Over Time'
     )
 
-    # Display the chart in Streamlit
-    st.altair_chart(combined_chart, use_container_width=True)
+    # Ensure 'dttm' is in datetime format
+    pair_details['dttm'] = pd.to_datetime(pair_details['dttm'])
+
+    # Melt the DataFrame to combine the metrics into one column
+    melted_pair_details = pair_details.melt(
+      id_vars=['dttm'],
+      value_vars=['price', 'fees'],
+      var_name='Legend',
+      value_name='Value'
+    )
+
+    # Map metric names to more readable labels
+    metric_names = {
+      'price': 'Price',
+      'fees': 'Fees'
+    }
+    melted_pair_details['Legend'] = melted_pair_details['Legend'].map(metric_names)
+
+    # Create a formatted time column in HH:MM AM/PM format
+    melted_pair_details['Time'] = melted_pair_details['dttm'].dt.strftime('%I:%M %p')
+
+    # Define the color scale to ensure consistent colors
+    color_scale = alt.Scale(
+      domain=['Price', 'Fees'],
+      range=['green', 'steelblue']
+    )
+
+    # Create individual charts for each metric
+    min_price_value = melted_pair_details[melted_pair_details['Legend'] == 'Price']['Value'].min()
+    max_price_value = melted_pair_details[melted_pair_details['Legend'] == 'Price']['Value'].max()
+    line_chart_3 = alt.Chart(
+      melted_pair_details[melted_pair_details['Legend'] == 'Price']
+    ).mark_line(strokeWidth=3.5).encode(
+      x=alt.X('dttm:T', title='Time'),
+      y=alt.Y('Value:Q', title='Price', scale=alt.Scale(domain=[min_price_value * 0.95, max_price_value])),
+      color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
+      tooltip=[
+        alt.Tooltip('Time:N', title='Time'),
+        alt.Tooltip('Value:Q', title='Price')
+      ]
+    )
+
+    bar_chart = alt.Chart(
+      melted_pair_details[melted_pair_details['Legend'] == 'Fees']
+    ).mark_bar(opacity=0.50).encode(
+      x=alt.X('dttm:T', title='Time'),
+      y=alt.Y('Value:Q', title='Fees'),
+      color=alt.Color('Legend:N', scale=color_scale, legend=alt.Legend(orient='top', title=None)),
+      tooltip=[
+        alt.Tooltip('Time:N', title='Time'),
+        alt.Tooltip('Value:Q', title='Fees')
+      ]
+    )
+
+    # Layer the charts and resolve the scales
+    combined_chart_2 = alt.layer(bar_chart, line_chart_3).resolve_scale(
+      y='independent'
+    ).properties(
+      width='container',
+      height=400,
+      title='Price and Fees Over Time'
+    )
+
+    # Display the charts in Streamlit
+    left_column, right_column = st.columns([1, 1])
+    with left_column:
+      st.altair_chart(combined_chart_1, use_container_width=True)
+
+    with right_column:
+      st.altair_chart(combined_chart_2, use_container_width=True)
 
 def display_num_minutes_selectbox(update_count):
   options = [x for x in TIMEFRAMES if x <= update_count]
@@ -555,7 +623,7 @@ async def main():
                 },
             }
 
-        left_column, right_column = st.columns([1, 1])
+        left_column, right_column = st.columns([0.45, 0.55])
         grid_table = None
 
         with left_column:
@@ -585,9 +653,9 @@ async def main():
                     "hiddenColIds": ["pair_address"]
                 }
             })
-            gb.configure_column("name", headerName="Pair Name", filterParams={"buttons": ["apply", "reset"], "closeOnApply": True})
-            gb.configure_column("bin_step", headerName="Bin Step", maxWidth=100, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
-            gb.configure_column("base_fee_percentage", headerName="Base Fee Percentage", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("name", headerName="Pair Name", maxWidth=135, filterParams={"buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("bin_step", headerName="Bin Step", maxWidth=85, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
+            gb.configure_column("base_fee_percentage", headerName="Base Fee Percentage", maxWidth=140, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
             gb.configure_column("pct_minutes_with_volume", headerName="% Minutes w/ Volume", maxWidth=125, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=0, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
             gb.configure_column("liquidity", headerName="Liquidity", type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "buttons": ["apply", "reset"], "closeOnApply": True})
             gb.configure_column("pct_geek_fees_liquidity_24h", headerName="Geek 24h Fee / TVL", maxWidth=120, type=["numericColumn", "numberColumnFilter", "customNumericFormat"], precision=2, filterParams={"defaultOption": "greaterThanOrEqual", "maxNumConditions": 1, "buttons": ["apply", "reset"], "closeOnApply": True})
