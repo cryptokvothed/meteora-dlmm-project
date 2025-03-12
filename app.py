@@ -138,10 +138,10 @@ def get_summary_data(num_minutes):
           ORDER BY created_at
         ) max_price,
         round(100 * (max_price - min_price) / min_price, 2) pct_price_range,
-        ceil(100 * pct_price_range / p.bin_step) bins_range,
+        ceil(log(max_price / min_price) / log(1 + p.bin_step / 10000.0)) bins_range,
         ceil(bins_range / 69) num_positions_range,
-        100 * (max_price - h.price) / h.price pct_below_max,
-        ceil(100 * pct_below_max / p.bin_step) bins_below_max,
+        100 * (max_price - h.price) / max_price pct_below_max,
+        ceil(log(1 + pct_below_max / 100) / log(1 + p.bin_step / 10000.0)) bins_below_max,
         bins_below_max <= 7 near_max,
         stddev_samp(h.price) OVER (
           PARTITION BY p.id
@@ -288,10 +288,10 @@ def get_pair_details(pair_address, num_minutes):
           ORDER BY created_at
         ) max_price,
         round(100 * (max_price - min_price) / min_price, 2) pct_price_range,
-        ceil(100 * pct_price_range / p.bin_step) bins_range,
+        ceil(log(max_price / min_price) / log(1 + p.bin_step / 10000.0)) bins_range,
         ceil(bins_range / 69) num_positions_range,
-        100 * (max_price - h.price) / h.price pct_below_max,
-        ceil(100 * pct_below_max / p.bin_step) bins_below_max,
+        100 * (max_price - h.price) / max_price pct_below_max,
+        ceil(log(1 + pct_below_max / 100) / log(1 + p.bin_step / 10000.0)) bins_below_max,
         bins_below_max <= 7 near_max,
         stddev_samp(h.price) OVER (
           PARTITION BY p.id
