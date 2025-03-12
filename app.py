@@ -203,6 +203,7 @@ def get_summary_data(num_minutes):
     FROM cumulative_stats
     WHERE
       created_at = (SELECT max(created_at) FROM pair_history)
+      AND num_minutes = {num_minutes}
   """
   summary_data = conn.execute(query).fetchdf()
   conn.close()
