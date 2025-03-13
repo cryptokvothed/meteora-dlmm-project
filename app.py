@@ -29,10 +29,10 @@ st.info("""
   This application will display Meteora DLMM opportunities based on the 
   "Geek 24h Fee / TVL" ratio. This is calculated by using the average TVL over 
   the time period specified instead of the current TVL. This results in a more 
-  accurate measure of Fee / TVL, as TVL is constantly changing pools. The TVL 
-  portion of the ratio also includes the addition of the standard deviation of 
-  the TVL. This makes the ratio more conservative, as it also accounts for the 
-  volatility in the TVL over time.
+  accurate measure of Fee / TVL, as TVL is constantly changing. The TVL portion 
+  of the ratio also includes the addition of the standard deviation of the TVL. 
+  This makes the ratio more conservative, as it also accounts for the volatility 
+  in the TVL over time.
         
   Always do your own research. Any pools you find using this tool should not 
   be deemed financial advice. By using this tool, you agree to hold the 
