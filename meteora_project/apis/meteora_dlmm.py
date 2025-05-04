@@ -29,7 +29,7 @@ async def fetch_page_data(session, page, limit, sort_key):
         response.raise_for_status()  # Will trigger retry if status is not 200
         return await response.json()
 
-async def fetch_paginated_data(limit=config.DEFAULT_LIMIT, sort_key="volume30m"):
+async def fetch_paginated_data(limit=config.DEFAULT_LIMIT, sort_key="volume"):
     """
     Handles pagination, looping through pages and aggregating results from the Meteora API.
     """
@@ -64,7 +64,7 @@ async def fetch_paginated_data(limit=config.DEFAULT_LIMIT, sort_key="volume30m")
 
     return results
 
-async def meteora_lp_api(limit=config.DEFAULT_LIMIT, sort_key="volume30m"):
+async def meteora_lp_api(limit=config.DEFAULT_LIMIT, sort_key="volume"):
     """
     Calls the Meteora API, handles rate limits, pagination, and returns aggregated data.
     The function delegates pagination logic to fetch_paginated_data.
